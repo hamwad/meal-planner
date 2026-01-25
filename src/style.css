@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 3rem;
+    min-height: 100vh;
+  }
+
+  #app {
+    height: 100vh;
+    overflow: hidden;
+  }
+}
