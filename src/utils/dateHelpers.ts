@@ -12,7 +12,7 @@ export function addDays(date: Date, days: number): Date {
 }
 
 export function formatDateISO(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0]!;
 }
 
 export function formatDate(date: Date): string {

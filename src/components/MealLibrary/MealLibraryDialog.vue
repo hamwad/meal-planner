@@ -693,7 +693,7 @@ defineExpose({
             </label>
             <div class="space-y-2">
               <div
-                v-for="(step, index) in recipeSteps"
+                v-for="(_step, index) in recipeSteps"
                 :key="index"
                 class="flex gap-2"
               >

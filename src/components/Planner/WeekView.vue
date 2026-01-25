@@ -1,7 +1,7 @@
 <template>
   <div class="grid grid-cols-7 gap-3 p-4">
     <DayColumn
-      v-for="(day, index) in weekDays"
+      v-for="day in weekDays"
       :key="day.dateISO"
       :date="day.date"
       :date-i-s-o="day.dateISO"

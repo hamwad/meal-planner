@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import type { ShoppingListItem, Unit } from '@/types';
+import type { ShoppingListItem } from '@/types';
 import { useMealsStore } from './meals';
 import { useCalendarStore } from './calendar';
 import { smartRound } from '@/utils/roundingHelpers';

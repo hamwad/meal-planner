@@ -269,7 +269,7 @@ onBeforeUnmount(() => {
 <template>
   <div>
     <!-- Trigger Button -->
-    <button class="btn btn-primary btn-block" @click="openDialog">
+    <button class="btn btn-primary btn-block" @click="() => openDialog()">
       + Add New Meal
     </button>
 
@@ -427,7 +427,7 @@ onBeforeUnmount(() => {
             </label>
             <div class="space-y-2">
               <div
-                v-for="(step, index) in recipeSteps"
+                v-for="(_step, index) in recipeSteps"
                 :key="index"
                 class="flex gap-2"
               >

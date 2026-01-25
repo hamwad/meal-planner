@@ -74,8 +74,8 @@ function parseQuantity(text: string): { quantity: number; unit: Unit; name: stri
 
   if (match) {
     const quantity = parseFloat(match[1]);
-    const unitStr = match[2]?.toLowerCase();
-    const name = match[3].trim();
+    const unitStr = match[2]?.toLowerCase() || '';
+    const name = (match[3] || '').trim();
     const lowerName = name.toLowerCase();
 
     // Convert cup/tablespoon/teaspoon to ml
@@ -134,8 +134,8 @@ function parseTime(timeStr: string): number | undefined {
     const hourMatch = timeStr.match(/(\d+)H/);
     const minuteMatch = timeStr.match(/(\d+)M/);
 
-    if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60;
-    if (minuteMatch) totalMinutes += parseInt(minuteMatch[1]);
+    if (hourMatch && hourMatch[1]) totalMinutes += parseInt(hourMatch[1]) * 60;
+    if (minuteMatch && minuteMatch[1]) totalMinutes += parseInt(minuteMatch[1]);
 
     return totalMinutes > 0 ? totalMinutes : undefined;
   }
@@ -144,8 +144,8 @@ function parseTime(timeStr: string): number | undefined {
   const match = timeStr.match(/(\d+)\s*(min|minute|minutes|hour|hours|h)/i);
   if (!match) return undefined;
 
-  const value = parseInt(match[1]);
-  const unit = match[2].toLowerCase();
+  const value = parseInt(match[1]!);
+  const unit = match[2]!.toLowerCase();
 
   if (unit.startsWith('h')) {
     return value * 60;
@@ -210,7 +210,7 @@ export async function fetchRecipeFromUrl(url: string): Promise<ParsedRecipe | nu
             let servings = 4;
             if (recipe.recipeYield) {
               const yieldMatch = String(recipe.recipeYield).match(/(\d+)/);
-              servings = yieldMatch ? parseInt(yieldMatch[1]) : 4;
+              servings = yieldMatch && yieldMatch[1] ? parseInt(yieldMatch[1]) : 4;
             }
 
             // Extract image URL
