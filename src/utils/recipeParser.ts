@@ -200,18 +200,22 @@ export async function fetchRecipeFromUrl(
   url: string,
 ): Promise<ParsedRecipe | null> {
   try {
-    // Try direct fetch first
     let html: string;
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch recipe");
-      html = await response.text();
-    } catch (error) {
-      // If CORS blocks it, try with a CORS proxy
+
+    // Check if URL is from a different origin (will need CORS proxy)
+    const needsProxy = !url.startsWith(window.location.origin);
+
+    if (needsProxy) {
+      // Use CORS proxy for external URLs to avoid CORS errors
       const corsProxy = "https://api.allorigins.win/raw?url=";
       const proxyUrl = corsProxy + encodeURIComponent(url);
       const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error("Failed to fetch recipe via proxy");
+      if (!response.ok) throw new Error("Failed to fetch recipe");
+      html = await response.text();
+    } else {
+      // Direct fetch for same-origin URLs
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch recipe");
       html = await response.text();
     }
 
@@ -353,13 +357,19 @@ export async function fetchRecipeFromUrl(
     return null;
   } catch (error) {
     console.error("Error fetching recipe:", error);
-    if (error instanceof TypeError && error.message.includes("fetch")) {
-      throw new Error(
-        "Unable to access recipe URL. The website may be blocking automated access.",
-      );
+
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes("Failed to fetch")) {
+        throw new Error(
+          "Could not access the recipe URL. The website may be blocking automated access, or the URL may be incorrect.",
+        );
+      }
+      throw new Error(error.message);
     }
+
     throw new Error(
-      "Failed to fetch recipe. Please check the URL and try again, or enter the recipe manually.",
+      "Failed to import recipe. Please check the URL or enter the recipe manually.",
     );
   }
 }

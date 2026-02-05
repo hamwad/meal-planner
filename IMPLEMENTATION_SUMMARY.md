@@ -1,8 +1,10 @@
 # Implementation Summary: Cloud Sync & Family Sharing
 
+> For architectural context and AI assistant guidance, see [`CLAUDE.md`](./CLAUDE.md)
+
 ## What Was Built
 
-Added cloud-based data persistence and family code sharing using Supabase. Multiple family members can now share the same meal library and weekly planner across devices.
+Added cloud-based data persistence and family code sharing using Supabase. Users get a personal family automatically, which can be shared with others via a 6-character family code. Multiple family members can share the same meal library and weekly planner across devices.
 
 ## Key Features
 
@@ -17,20 +19,28 @@ Added cloud-based data persistence and family code sharing using Supabase. Multi
 ## Files Created
 
 ### Core Services
-- `src/services/supabase.ts` - Supabase client
+- `src/services/supabase.ts` - Supabase client configuration
 - `src/services/familyService.ts` - Family CRUD operations
 
 ### State Management
-- `src/stores/auth.ts` - Authentication state
-- `src/stores/sync.ts` - Sync status tracking
+- `src/stores/auth.ts` - Authentication state with auto-family creation
+- `src/stores/shoppingList.ts` - Shopping list state
+
+### API Layer (TanStack Query)
+- `src/api/families/` - Family queries and mutations
+- `src/composables/queries/` - Data fetching hooks
+- `src/composables/mutations/` - Data mutation hooks
 
 ### Components
 - `src/components/FamilyBadge.vue` - Header badge with family code
-- `src/components/FamilySetup.vue` - Create/join family dialog
+- `src/components/FamilySetupDialog.vue` - Create/join family dialog
+- `src/components/MealLibrary/` - Meal management components
+- `src/components/Planner/` - Calendar/planner components
+- `src/components/ShoppingList/` - Shopping list components
 
 ### Utilities
-- `src/composables/useSupabaseSync.ts` - Sync logic (polls every 10 seconds)
 - `src/utils/familyCodeGenerator.ts` - Generates random 6-character codes
+- `src/utils/transformers.ts` - Data transformation between app and DB formats
 
 ### Configuration & Documentation
 - `.env.example` - Environment template
@@ -61,19 +71,28 @@ Added cloud-based data persistence and family code sharing using Supabase. Multi
 
 ## How It Works
 
+### Authentication & Family Strategy (Updated)
+
+**Auto-Created Family Approach:**
+- Every user automatically gets a personal family upon first sign-in
+- No setup required - users can immediately use the app
+- Personal families become shared families when others join
+- Users can later leave and join different families
+
 ### First-Time User Flow
 1. User visits app
 2. Anonymous authentication happens automatically
-3. Family Setup dialog appears
-4. User creates or joins a family
-5. Data syncs automatically every 10 seconds
+3. **Personal family auto-created** (no dialog required)
+4. User can immediately add meals, plan, and create shopping lists
+5. User can optionally share their family code to invite others
+6. Data syncs automatically using TanStack Query
 
 ### Data Sync Flow
 1. User makes a change (add/edit/delete meal)
-2. Change saved to localStorage immediately (optimistic)
-3. Change synced to Supabase asynchronously
-4. Every 10 seconds, app checks for changes from other users
-5. If changes found, local state updated with newer data
+2. TanStack Query handles optimistic updates
+3. Change synced to Supabase immediately
+4. Queries automatically refetch when data changes
+5. Other users' changes appear via query invalidation
 
 ## Setup Required
 
@@ -100,20 +119,24 @@ Using Supabase free tier:
 ## Technology Stack
 
 - **Frontend**: Vue 3 + TypeScript + Vite
-- **State Management**: Pinia
+- **State Management**: Pinia (auth, UI state) + TanStack Query (server state)
 - **Backend**: Supabase (PostgreSQL)
-- **Auth**: Supabase Anonymous Auth
-- **Sync**: Polling (10-second interval)
+- **Auth**: Supabase Anonymous Auth with auto-created families
+- **Data Fetching**: TanStack Query (Vue Query)
 - **Styling**: TailwindCSS + DaisyUI
+- **UI Components**: Auto-imported with unplugin-vue-components
 
 ## Future Enhancements
 
 Potential improvements (not implemented):
-- Real-time subscriptions (replace polling)
-- Multiple families support per user
-- Meal sharing between families
+- Real-time subscriptions with Supabase Realtime (replace query refetching)
+- Multiple families support per user (architectural foundation exists)
+- Offline mutation queue (currently requires connection)
+- Meal categories/tags
+- Recipe scaling based on servings
+- Nutritional information
 - Activity log
-- Data export
+- Data export/import
 - Conflict resolution UI
 
 ## Development

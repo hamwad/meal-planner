@@ -1,21 +1,29 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import type { ShoppingListItem } from '@/types';
-import { useMealsStore } from './meals';
-import { useCalendarStore } from './calendar';
+import { useAuthStore } from './auth';
 import { smartRound } from '@/utils/roundingHelpers';
+import { useMealsQuery } from '@/api/meals';
+import { useCalendarQuery } from '@/api/calendar';
 
 export const useShoppingListStore = defineStore('shoppingList', () => {
-  const mealsStore = useMealsStore();
-  const calendarStore = useCalendarStore();
+  const authStore = useAuthStore();
+
+  // Use reactive queries instead of reading from cache
+  const { data: mealsData } = useMealsQuery();
+  const { data: calendarData } = useCalendarQuery();
 
   const dateRangeFilter = ref<{ start: string; end: string } | null>(null);
 
   const items = computed<ShoppingListItem[]>(() => {
     const aggregationMap = new Map<string, ShoppingListItem>();
 
+    // Use reactive query data
+    const meals = mealsData.value || [];
+    const calendarMeals = calendarData.value || [];
+
     // Iterate all calendar meals
-    for (const calendarMeal of calendarStore.calendarMeals) {
+    for (const calendarMeal of calendarMeals) {
       // Apply date range filter if set
       if (dateRangeFilter.value) {
         if (
@@ -26,7 +34,7 @@ export const useShoppingListStore = defineStore('shoppingList', () => {
         }
       }
 
-      const meal = mealsStore.getMealById(calendarMeal.mealId);
+      const meal = meals.find((m) => m.id === calendarMeal.mealId);
       if (!meal) continue;
 
       // Calculate servings multiplier

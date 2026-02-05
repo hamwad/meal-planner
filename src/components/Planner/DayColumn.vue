@@ -28,7 +28,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { Meal } from '@/types';
-import { useCalendarStore } from '@/stores/calendar';
+import { useCalendarQuery } from '@/api/calendar';
+import { useCalendarMutations } from '@/api/calendar';
 import { useDragAndDrop } from '@/composables/useDragAndDrop';
 import { formatDate } from '@/utils/dateHelpers';
 import PlannedMealCard from './PlannedMealCard.vue';
@@ -42,14 +43,18 @@ const emit = defineEmits<{
   editMeal: [meal: Meal];
 }>();
 
-const calendarStore = useCalendarStore();
+const { data: calendarData } = useCalendarQuery();
+const { addMealToDate } = useCalendarMutations();
 const { getDraggedMealId, endDrag } = useDragAndDrop();
 
 const isDragOver = ref(false);
 
 const formattedDate = computed(() => formatDate(props.date));
 
-const meals = computed(() => calendarStore.getMealsForDate(props.dateISO));
+const meals = computed(() => {
+  if (!calendarData.value) return [];
+  return calendarData.value.filter((cm) => cm.date === props.dateISO);
+});
 
 const handleDragOver = (event: DragEvent) => {
   isDragOver.value = true;
@@ -66,7 +71,7 @@ const handleDrop = () => {
   isDragOver.value = false;
   const mealId = getDraggedMealId();
   if (mealId) {
-    calendarStore.addMealToDate(mealId, props.dateISO);
+    addMealToDate.mutate({ mealId, date: props.dateISO });
   }
   endDrag();
 };

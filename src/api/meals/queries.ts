@@ -1,0 +1,37 @@
+import { useQuery } from "@tanstack/vue-query";
+import { supabase } from "@/services/supabase";
+import { useAuthStore } from "@/stores/auth";
+import { transformToMeal } from "@/utils/transformers";
+import type { Meal } from "@/types";
+
+/**
+ * Fetch all meals for the current family from Supabase
+ */
+async function fetchMeals(familyId: string): Promise<Meal[]> {
+  const { data, error } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("family_id", familyId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(transformToMeal);
+}
+
+/**
+ * Query hook for fetching meals
+ */
+export function useMealsQuery() {
+  const authStore = useAuthStore();
+
+  return useQuery({
+    queryKey: ["meals", authStore.familyId],
+    queryFn: () => fetchMeals(authStore.familyId!),
+    enabled: !!authStore.familyId && authStore.isInitialized,
+    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+    // Polling disabled - rely on mutation invalidation + refetch on focus/reconnect
+    // refetchInterval: 10000,
+  });
+}

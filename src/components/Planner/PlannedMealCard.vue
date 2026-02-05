@@ -44,8 +44,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CalendarMeal, Meal } from '@/types';
-import { useMealsStore } from '@/stores/meals';
-import { useCalendarStore } from '@/stores/calendar';
+import { useMealsQuery } from '@/api/meals';
+import { useCalendarMutations } from '@/api/calendar';
 
 const props = defineProps<{
   calendarMeal: CalendarMeal;
@@ -55,10 +55,13 @@ const emit = defineEmits<{
   edit: [meal: Meal];
 }>();
 
-const mealsStore = useMealsStore();
-const calendarStore = useCalendarStore();
+const { data: meals } = useMealsQuery();
+const { removeMealFromDate } = useCalendarMutations();
 
-const meal = computed(() => mealsStore.getMealById(props.calendarMeal.mealId));
+const meal = computed(() => {
+  if (!meals.value) return undefined;
+  return meals.value.find((m) => m.id === props.calendarMeal.mealId);
+});
 
 const servings = computed(() => {
   if (!meal.value) return 0;
@@ -66,7 +69,10 @@ const servings = computed(() => {
 });
 
 const handleRemove = () => {
-  calendarStore.removeMealFromDate(props.calendarMeal.mealId, props.calendarMeal.date);
+  removeMealFromDate.mutate({
+    mealId: props.calendarMeal.mealId,
+    date: props.calendarMeal.date,
+  });
 };
 
 const handleEdit = () => {
