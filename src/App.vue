@@ -2,7 +2,7 @@
   <div class="app-wrapper">
     <!-- Header with Family Badge -->
     <header class="app-header">
-      <h1 class="app-title">Meal Planner</h1>
+      <h1 class="app-title">Meal Planner!</h1>
       <FamilyBadge />
     </header>
 
@@ -14,7 +14,11 @@
     </div>
 
     <!-- Family Setup Dialog -->
-    <FamilySetup ref="familySetupRef" @family-created="handleFamilyCreated" @family-joined="handleFamilyJoined" />
+    <FamilySetup
+      ref="familySetupRef"
+      @family-created="handleFamilyCreated"
+      @family-joined="handleFamilyJoined"
+    />
   </div>
 </template>
 
@@ -30,7 +34,9 @@ import { useAuthStore } from "./stores/auth";
 import { useSupabaseSync } from "./composables/useSupabaseSync";
 import { isSupabaseConfigured } from "./services/supabase";
 
-const libraryDialogRef = ref<InstanceType<typeof MealLibraryDialog> | null>(null);
+const libraryDialogRef = ref<InstanceType<typeof MealLibraryDialog> | null>(
+  null,
+);
 const familySetupRef = ref<InstanceType<typeof FamilySetup> | null>(null);
 
 const authStore = useAuthStore();
@@ -64,7 +70,11 @@ onMounted(async () => {
   await authStore.initialize();
 
   // If Supabase is configured and auth is initialized
-  if (isSupabaseConfigured() && authStore.isInitialized && authStore.isAuthenticated) {
+  if (
+    isSupabaseConfigured() &&
+    authStore.isInitialized &&
+    authStore.isAuthenticated
+  ) {
     if (!authStore.hasFamily()) {
       // Show family setup dialog if user is not in a family
       setTimeout(() => {
