@@ -12,7 +12,7 @@ const showRequiredFamilySetup = computed(
   () =>
     authStore.isAuthenticated &&
     authStore.isInitialized &&
-    !authStore.hasAnyFamily,
+    !authStore.activeFamilyId,
 );
 
 // Show main app when authenticated with active family

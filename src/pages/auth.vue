@@ -207,7 +207,12 @@ const handleGoogleSignIn = async () => {
         </form>
 
         <!-- Signup form -->
-        <form v-else @submit.prevent="onSignup" class="flex flex-col gap-4">
+        <form
+          v-else
+          id="signup-form"
+          @submit.prevent="onSignup"
+          class="flex flex-col gap-4"
+        >
           <div class="flex flex-col gap-1">
             <label for="signup-email">Email</label>
             <InputText
@@ -258,6 +263,7 @@ const handleGoogleSignIn = async () => {
 
           <Button
             type="submit"
+            form="signup-form"
             label="Create Account"
             :loading="isLoading"
             class="w-full mt-2"
@@ -266,7 +272,7 @@ const handleGoogleSignIn = async () => {
 
         <!-- Divider -->
         <Divider align="center" class="my-6">
-          <span class="text-surface-500 text-sm">or continue with</span>
+          <span class="text-surface-500 text-sm">or</span>
         </Divider>
 
         <!-- Google OAuth -->
