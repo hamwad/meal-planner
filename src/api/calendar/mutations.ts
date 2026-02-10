@@ -27,7 +27,7 @@ export function useCalendarMutations() {
       date: string;
       servingsOverride?: number;
     }) => {
-      if (!authStore.familyId) {
+      if (!authStore.activeFamilyId) {
         throw new Error("Family not initialized. Please refresh the page.");
       }
 
@@ -40,7 +40,7 @@ export function useCalendarMutations() {
 
       const calendarData = transformCalendarMealToSupabase(
         calendarMeal,
-        authStore.familyId,
+        authStore.activeFamilyId
       );
 
       const { data, error } = await supabase
@@ -53,13 +53,14 @@ export function useCalendarMutations() {
       return transformToCalendarMeal(data);
     },
     onMutate: async ({ mealId, date, servingsOverride }) => {
+      const familyId = authStore.activeFamilyId;
       await queryClient.cancelQueries({
-        queryKey: ["calendar", authStore.familyId],
+        queryKey: ["calendar", familyId],
       });
 
       const previousCalendar = queryClient.getQueryData<CalendarMeal[]>([
         "calendar",
-        authStore.familyId,
+        familyId,
       ]);
 
       const newCalendarMeal: CalendarMeal = {
@@ -70,26 +71,26 @@ export function useCalendarMutations() {
       };
 
       queryClient.setQueryData<CalendarMeal[]>(
-        ["calendar", authStore.familyId],
+        ["calendar", familyId],
         (old) => {
           return old ? [...old, newCalendarMeal] : [newCalendarMeal];
-        },
+        }
       );
 
-      return { previousCalendar };
+      return { previousCalendar, familyId };
     },
     onError: (err, _variables, context) => {
       if (context?.previousCalendar) {
         queryClient.setQueryData(
-          ["calendar", authStore.familyId],
-          context.previousCalendar,
+          ["calendar", context.familyId],
+          context.previousCalendar
         );
       }
       console.error("Error adding meal to calendar:", err);
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, context) => {
       queryClient.invalidateQueries({
-        queryKey: ["calendar", authStore.familyId],
+        queryKey: ["calendar", context?.familyId],
       });
     },
   });
@@ -99,14 +100,14 @@ export function useCalendarMutations() {
    */
   const removeMealFromDate = useMutation({
     mutationFn: async ({ mealId, date }: { mealId: string; date: string }) => {
-      if (!authStore.familyId) {
+      if (!authStore.activeFamilyId) {
         throw new Error("Family not initialized. Please refresh the page.");
       }
 
       const { error } = await supabase
         .from("calendar_meals")
         .delete()
-        .eq("family_id", authStore.familyId)
+        .eq("family_id", authStore.activeFamilyId)
         .eq("meal_id", mealId)
         .eq("date", date);
 
@@ -114,39 +115,40 @@ export function useCalendarMutations() {
       return { mealId, date };
     },
     onMutate: async ({ mealId, date }) => {
+      const familyId = authStore.activeFamilyId;
       await queryClient.cancelQueries({
-        queryKey: ["calendar", authStore.familyId],
+        queryKey: ["calendar", familyId],
       });
 
       const previousCalendar = queryClient.getQueryData<CalendarMeal[]>([
         "calendar",
-        authStore.familyId,
+        familyId,
       ]);
 
       queryClient.setQueryData<CalendarMeal[]>(
-        ["calendar", authStore.familyId],
+        ["calendar", familyId],
         (old) => {
           if (!old) return [];
           return old.filter(
-            (cm) => !(cm.mealId === mealId && cm.date === date),
+            (cm) => !(cm.mealId === mealId && cm.date === date)
           );
-        },
+        }
       );
 
-      return { previousCalendar };
+      return { previousCalendar, familyId };
     },
     onError: (err, _variables, context) => {
       if (context?.previousCalendar) {
         queryClient.setQueryData(
-          ["calendar", authStore.familyId],
-          context.previousCalendar,
+          ["calendar", context.familyId],
+          context.previousCalendar
         );
       }
       console.error("Error removing meal from calendar:", err);
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, context) => {
       queryClient.invalidateQueries({
-        queryKey: ["calendar", authStore.familyId],
+        queryKey: ["calendar", context?.familyId],
       });
     },
   });
@@ -164,7 +166,7 @@ export function useCalendarMutations() {
       date: string;
       servings: number;
     }) => {
-      if (!authStore.familyId) {
+      if (!authStore.activeFamilyId) {
         throw new Error("Family not initialized. Please refresh the page.");
       }
 
@@ -174,7 +176,7 @@ export function useCalendarMutations() {
           servings_override: servings,
           updated_at: new Date().toISOString(),
         })
-        .eq("family_id", authStore.familyId)
+        .eq("family_id", authStore.activeFamilyId)
         .eq("meal_id", mealId)
         .eq("date", date)
         .select()
@@ -184,17 +186,18 @@ export function useCalendarMutations() {
       return transformToCalendarMeal(data);
     },
     onMutate: async ({ mealId, date, servings }) => {
+      const familyId = authStore.activeFamilyId;
       await queryClient.cancelQueries({
-        queryKey: ["calendar", authStore.familyId],
+        queryKey: ["calendar", familyId],
       });
 
       const previousCalendar = queryClient.getQueryData<CalendarMeal[]>([
         "calendar",
-        authStore.familyId,
+        familyId,
       ]);
 
       queryClient.setQueryData<CalendarMeal[]>(
-        ["calendar", authStore.familyId],
+        ["calendar", familyId],
         (old) => {
           if (!old) return [];
           return old.map((cm) => {
@@ -207,23 +210,23 @@ export function useCalendarMutations() {
             }
             return cm;
           });
-        },
+        }
       );
 
-      return { previousCalendar };
+      return { previousCalendar, familyId };
     },
     onError: (err, _variables, context) => {
       if (context?.previousCalendar) {
         queryClient.setQueryData(
-          ["calendar", authStore.familyId],
-          context.previousCalendar,
+          ["calendar", context.familyId],
+          context.previousCalendar
         );
       }
       console.error("Error updating servings:", err);
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, context) => {
       queryClient.invalidateQueries({
-        queryKey: ["calendar", authStore.familyId],
+        queryKey: ["calendar", context?.familyId],
       });
     },
   });

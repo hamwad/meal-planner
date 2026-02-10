@@ -44,6 +44,7 @@ User Action → Mutation (optimistic update) → Supabase → Query Invalidation
 ### 4. Database Schema
 
 All tables include `family_id` to scope data:
+
 - `families` - Family groups with unique 6-char codes
 - `family_members` - User-to-family relationships
 - `meals` - Meal library (name, ingredients, servings)
@@ -51,6 +52,31 @@ All tables include `family_id` to scope data:
 - `shopping_list_items` - Shopping list entries
 
 **Security:** Row Level Security (RLS) policies ensure users only access their family's data.
+
+### 5. Directory Structure
+
+```
+/src
+├── /api/                    # API layer organized by feature domains
+│   ├── /[domain]/           # Each domain (auth, badges, billing, etc.)
+│   │   ├── index.ts         # Re-exports
+│   │   ├── keys.ts          # TanStack Query key factory
+│   │   ├── queries.ts       # useQuery hooks
+│   │   ├── mutations.ts     # useMutation hooks
+│   │   └── types.ts         # TypeScript interfaces
+│   └── /sauron/generated/   # Auto-generated Orval client (DO NOT EDIT)
+├── /components/             # Reusable Vue components
+│   ├── /form/               # Form inputs (CoreInputText, CoreFileUpload, etc.)
+│   ├── /data/               # Data display (CoreDataTable, CardList)
+│   ├── /layouts/            # Page layouts
+│   └── /misc/               # Utility components (CoreCard, CoreToast)
+├── /pages/                  # File-based routing (auto-generates routes)
+├── /composables/            # Reusable composition functions
+├── /stores/                 # Pinia stores (auth)
+└── /utils/                  # Utility functions
+/e2e                         # Playwright E2E tests
+/tests/unit                  # Vitest unit tests
+```
 
 ## Key Files & Patterns
 
@@ -65,7 +91,7 @@ const initialize = async () => {
   // Check if family exists
   // If not, auto-create personal family
   // Set familyId
-}
+};
 ```
 
 **Pattern:** Always check `authStore.familyId` before data operations. Should never be null after initialization.
@@ -90,6 +116,7 @@ export function useMealsQuery() {
 ```
 
 **Pattern:**
+
 - Query keys include `familyId` for proper scoping
 - Use `enabled` to prevent queries before auth initializes
 - Transform data between DB format and app format
@@ -114,16 +141,17 @@ const addMeal = useMutation({
   },
   onError: (err, variables, context) => {
     // Rollback on error
-    queryClient.setQueryData(['meals', familyId], context.previousMeals);
+    queryClient.setQueryData(["meals", familyId], context.previousMeals);
   },
   onSettled: () => {
     // Always refetch to ensure consistency
-    queryClient.invalidateQueries(['meals', familyId]);
+    queryClient.invalidateQueries(["meals", familyId]);
   },
 });
 ```
 
 **Pattern:**
+
 - Optimistic updates in `onMutate`
 - Rollback in `onError`
 - Invalidate queries in `onSettled` to sync across devices
@@ -163,10 +191,10 @@ Components and composables are auto-imported:
 ```vue
 <script setup lang="ts">
 // No need to import ref, computed, etc.
-const count = ref(0)
+const count = ref(0);
 
 // No need to import useMealsQuery
-const { data: meals } = useMealsQuery()
+const { data: meals } = useMealsQuery();
 </script>
 ```
 
@@ -219,13 +247,49 @@ const { data: meals, isLoading, error } = useMealsQuery();
 3. In second browser, join family using the code
 4. Make changes in one browser, verify they appear in the other
 
-## Coding Conventions
+## Code Style Conventions
 
-- **File naming:** camelCase for composables, PascalCase for components
-- **Component structure:** `<script setup>` with TypeScript
-- **Styling:** TailwindCSS utility classes, DaisyUI components
-- **Error handling:** User-friendly error messages, console.error for debugging
-- **Comments:** Only where logic isn't self-evident
+### Naming Conventions
+
+| Item                         | Convention                | Example                                           |
+| ---------------------------- | ------------------------- | ------------------------------------------------- |
+| Custom components            | `Core` prefix, PascalCase | `CoreInputText.vue`, `CoreDataTable.vue`          |
+| Pages                        | Single word allowed       | `index.vue`, `settings.vue`                       |
+| Composables                  | `use` prefix, camelCase   | `usePagedTable`, `useDrawer`                      |
+| Component usage in templates | PascalCase                | `<FontAwesomeIcon />` not `<font-awesome-icon />` |
+| Test IDs                     | kebab-case                | `data-testid="add-member-dialog"`                 |
+
+### TypeScript
+
+- Strict mode enabled
+- Use Composition API, never Options API
+- Path alias: `@/*` maps to `./src/*`
+- Use `vue-tsc` for type checking (not plain `tsc`)
+
+### Auto-Imports
+
+These are globally available without explicit imports:
+
+- Vue: `ref`, `computed`, `watch`, `onMounted`, etc.
+- Vue Router: `useRoute`, `useRouter`
+- VueUse: `useFocus`, `useLocalStorage`, etc.
+- VeeValidate: `useForm`, `useField`
+- Yup: `yup`
+- vue-i18n: `useI18n`
+
+## External Documentation
+
+### PrimeVue
+
+PrimeVue provides LLM-friendly documentation:
+
+- **LLMs page**: https://primevue.org/llms
+
+Fetch this when you need detailed PrimeVue component documentation, accessibility guidance, or API references.
+
+### VeeValidate
+
+For form validation patterns: https://vee-validate.logaretm.com/v4/
 
 ## Environment Setup
 
@@ -237,6 +301,12 @@ VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
 
 See `SUPABASE_SETUP.md` for detailed setup instructions.
+
+## Common Pitfalls
+
+- **Don't use** `tsc` directly - use `vue-tsc` for `.vue` file type checking
+- **Don't use** Options API - always use Composition API with `<script setup>`
+- **Don't manipulate** DOM directly - use Vue's reactive data binding
 
 ## Known Limitations
 
@@ -256,5 +326,5 @@ See `SUPABASE_SETUP.md` for detailed setup instructions.
 
 ---
 
-**Last Updated:** 2026-02-01
+**Last Updated:** 6 Feb 2026
 **Primary AI Assistant:** Claude Code

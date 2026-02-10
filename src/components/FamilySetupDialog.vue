@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import { useCreateFamily, useJoinFamily } from "@/api/families";
+import { useAuthStore } from "@/stores/auth";
 import type { Family } from "@/types";
 
-const emit = defineEmits(["close"]);
+const props = defineProps<{
+  required?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: "close"): void;
+  (e: "family-selected", family: Family): void;
+}>();
+
+const authStore = useAuthStore();
 
 const visible = ref(true);
 const mode = ref("Create");
@@ -27,16 +37,39 @@ const {
 } = useCreateFamily();
 
 const {
-  mutateAsync: joinFamily,
+  mutateAsync: joinFamilyMutation,
   isPending: isJoiningFamily,
   isSuccess: joinedFamily,
-  isError,
   error,
 } = useJoinFamily();
 
 const handleCreateFamily = async () => {
-  const { family } = await mutateAsync();
-  createdFamily.value = family;
+  const result = await mutateAsync();
+  if (result?.family) {
+    createdFamily.value = result.family;
+    authStore.setActiveFamily(result.family.id);
+    emit("family-selected", result.family);
+  }
+};
+
+const handleJoinFamily = async () => {
+  const result = await joinFamilyMutation(joinCode.value);
+  if (result?.family) {
+    authStore.setActiveFamily(result.family.id);
+    emit("family-selected", result.family);
+  }
+};
+
+const handleClose = () => {
+  if (!props.required) {
+    visible.value = false;
+    emit("close");
+  }
+};
+
+const handleDone = () => {
+  visible.value = false;
+  emit("close");
 };
 </script>
 
@@ -46,7 +79,9 @@ const handleCreateFamily = async () => {
     modal
     header="Create or join family"
     class="w-200"
-    @update:visible="visible = false"
+    :closable="!required"
+    :closeOnEscape="!required"
+    @update:visible="handleClose"
     @after-hide="$emit('close')"
   >
     <div>
@@ -71,7 +106,7 @@ const handleCreateFamily = async () => {
         <div class="flex gap-4 items-center" v-else>
           <Button icon="pi pi-check" rounded class="bg-transparent" />
           <p
-            class="px-4 py-1 rounded border-dashed border"
+            class="px-4 py-1 rounded border-dashed border cursor-pointer"
             @click="copy(createdFamily.code)"
           >
             {{ createdFamily.code }}
@@ -92,7 +127,7 @@ const handleCreateFamily = async () => {
             :pt="{ pcInputText: { root: 'uppercase' } }"
             :invalid="!!error"
           />
-          <small class="text-error" v-if="!!error">{{ error.message }}</small>
+          <small class="text-red-500" v-if="!!error">{{ error.message }}</small>
         </div>
         <Button
           v-if="!joinedFamily"
@@ -100,7 +135,7 @@ const handleCreateFamily = async () => {
           label="Join family"
           :disabled="!validJoinCode"
           :loading="isJoiningFamily"
-          @click="joinFamily(joinCode)"
+          @click="handleJoinFamily"
         />
         <div v-else class="flex items-center gap-4">
           <Button icon="pi pi-check" rounded class="bg-transparent" />
@@ -110,13 +145,7 @@ const handleCreateFamily = async () => {
     </div>
     <template #footer v-if="createdFamily || joinedFamily">
       <div class="flex gap-4">
-        <Button
-          label="Done"
-          @click="
-            visible = false;
-            $emit('close');
-          "
-        />
+        <Button label="Done" @click="handleDone" />
       </div>
     </template>
   </Dialog>

@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { getWeekStart, addDays } from "@/utils/dateHelpers";
 import type { Meal } from "@/types";
 import { useMealsQuery } from "@/api/meals";
+import { useWeekStore } from "@/stores/week";
 import MealForm from "./MealForm.vue";
 
 const emit = defineEmits(["close"]);
+
+// Shared week state
+const weekStore = useWeekStore();
 
 // Data queries
 const { data: meals, isLoading: isLoadingMeals } = useMealsQuery();
 
 // Dialog and form state
 const visible = ref(true);
-const currentWeekStart = ref(getWeekStart());
 const viewMode = ref<"browse" | "form">("browse");
 const searchQuery = ref("");
 const editingMeal = ref<Meal | null>(null);
@@ -67,18 +69,6 @@ const handleFormCancel = () => {
 const handleFormDelete = () => {
   backToBrowse();
 };
-
-const previousWeek = () => {
-  currentWeekStart.value = addDays(currentWeekStart.value, -7);
-};
-
-const nextWeek = () => {
-  currentWeekStart.value = addDays(currentWeekStart.value, 7);
-};
-
-const goToCurrentWeek = () => {
-  currentWeekStart.value = getWeekStart();
-};
 </script>
 
 <template>
@@ -104,14 +94,14 @@ const goToCurrentWeek = () => {
         <div class="flex items-center gap-2">
           <span class="text-xs text-surface-600">Schedule for:</span>
           <div class="flex gap-1">
-            <Button label="← Prev" text size="small" @click="previousWeek" />
+            <Button label="← Prev" text size="small" @click="weekStore.previousWeek" />
             <Button
               label="This week"
               text
               size="small"
-              @click="goToCurrentWeek"
+              @click="weekStore.goToCurrentWeek"
             />
-            <Button label="Next →" text size="small" @click="nextWeek" />
+            <Button label="Next →" text size="small" @click="weekStore.goToNextWeek" />
           </div>
         </div>
 
@@ -130,7 +120,7 @@ const goToCurrentWeek = () => {
           v-else-if="filteredMeals.length > 0"
           class="grid grid-cols-1 md:grid-cols-5 gap-4"
         >
-          <MealCard :meals="filteredMeals" @edit="handleEditMeal" />
+          <MealCard v-for="meal in filteredMeals" :key="meal.id" :meal="meal" :week-start="weekStore.weekStart" @edit="handleEditMeal" />
         </div>
 
         <div v-else-if="searchQuery.trim()" class="text-center py-12">

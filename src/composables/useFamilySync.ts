@@ -23,7 +23,7 @@ export function useFamilySync() {
     }
 
     const mealsData = meals.map((meal) =>
-      transformMealToSupabase(meal, familyId),
+      transformMealToSupabase(meal, familyId)
     );
 
     const { error } = await supabase.from("meals").insert(mealsData);
@@ -39,14 +39,14 @@ export function useFamilySync() {
    */
   const uploadExistingCalendar = async (
     familyId: string,
-    calendarMeals: CalendarMeal[],
+    calendarMeals: CalendarMeal[]
   ) => {
     if (calendarMeals.length === 0) {
       return;
     }
 
     const calendarData = calendarMeals.map((cm) =>
-      transformCalendarMealToSupabase(cm, familyId),
+      transformCalendarMealToSupabase(cm, familyId)
     );
 
     const { error } = await supabase
@@ -68,10 +68,10 @@ export function useFamilySync() {
   const onFamilyCreated = async (
     family: Family,
     existingMeals: Meal[],
-    existingCalendar: CalendarMeal[],
+    existingCalendar: CalendarMeal[]
   ) => {
     // Set family in auth store first
-    authStore.setFamily(family);
+    authStore.setActiveFamily(family.id);
 
     try {
       // Upload existing data
@@ -81,28 +81,7 @@ export function useFamilySync() {
       ]);
 
       // Prefetch with new familyId
-      await Promise.all([
-        queryClient.prefetchQuery({
-          queryKey: ["meals", family.id],
-          queryFn: async () => {
-            const { data } = await supabase
-              .from("meals")
-              .select("*")
-              .eq("family_id", family.id);
-            return data || [];
-          },
-        }),
-        queryClient.prefetchQuery({
-          queryKey: ["calendar", family.id],
-          queryFn: async () => {
-            const { data } = await supabase
-              .from("calendar_meals")
-              .select("*")
-              .eq("family_id", family.id);
-            return data || [];
-          },
-        }),
-      ]);
+      await prefetchFamilyData(family.id);
     } catch (error) {
       console.error("Error during family creation:", error);
       throw error;
@@ -111,41 +90,25 @@ export function useFamilySync() {
 
   /**
    * Handle joining a family
-   * - Clears all cached data
+   * - Clears cached data for previous family
    * - Sets family in auth store
    * - Prefetches new family data
    */
   const onFamilyJoined = async (family: Family) => {
-    // Clear all cached data from old family
-    queryClient.clear();
+    const oldFamilyId = authStore.activeFamilyId;
+
+    // Clear old family's cached data
+    if (oldFamilyId) {
+      queryClient.removeQueries({ queryKey: ["meals", oldFamilyId] });
+      queryClient.removeQueries({ queryKey: ["calendar", oldFamilyId] });
+    }
 
     // Set new family in auth store
-    authStore.setFamily(family);
+    authStore.setActiveFamily(family.id);
 
     try {
       // Prefetch new family data
-      await Promise.all([
-        queryClient.prefetchQuery({
-          queryKey: ["meals", family.id],
-          queryFn: async () => {
-            const { data } = await supabase
-              .from("meals")
-              .select("*")
-              .eq("family_id", family.id);
-            return data || [];
-          },
-        }),
-        queryClient.prefetchQuery({
-          queryKey: ["calendar", family.id],
-          queryFn: async () => {
-            const { data } = await supabase
-              .from("calendar_meals")
-              .select("*")
-              .eq("family_id", family.id);
-            return data || [];
-          },
-        }),
-      ]);
+      await prefetchFamilyData(family.id);
     } catch (error) {
       console.error("Error during family join:", error);
       throw error;
@@ -154,17 +117,67 @@ export function useFamilySync() {
 
   /**
    * Handle leaving a family
-   * - Clears all cached data
-   * - Clears family from auth store
+   * - Clears cached data for the left family
+   * - Auth store handles switching to another family or clearing
    */
-  const onFamilyLeft = () => {
-    queryClient.clear();
-    authStore.clearFamily();
+  const onFamilyLeft = (familyId: string) => {
+    // Remove specific family's cached data
+    queryClient.removeQueries({ queryKey: ["meals", familyId] });
+    queryClient.removeQueries({ queryKey: ["calendar", familyId] });
+  };
+
+  /**
+   * Handle switching active family
+   * - Clears cached data for old family
+   * - Prefetches data for new family
+   */
+  const onFamilySwitch = async (
+    newFamilyId: string,
+    oldFamilyId: string | null
+  ) => {
+    // Remove old family's cached data
+    if (oldFamilyId) {
+      queryClient.removeQueries({ queryKey: ["meals", oldFamilyId] });
+      queryClient.removeQueries({ queryKey: ["calendar", oldFamilyId] });
+    }
+
+    // Prefetch new family's data
+    await prefetchFamilyData(newFamilyId);
+  };
+
+  /**
+   * Prefetch meals and calendar data for a family
+   */
+  const prefetchFamilyData = async (familyId: string) => {
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: ["meals", familyId],
+        queryFn: async () => {
+          const { data } = await supabase
+            .from("meals")
+            .select("*")
+            .eq("family_id", familyId);
+          return data || [];
+        },
+      }),
+      queryClient.prefetchQuery({
+        queryKey: ["calendar", familyId],
+        queryFn: async () => {
+          const { data } = await supabase
+            .from("calendar_meals")
+            .select("*")
+            .eq("family_id", familyId);
+          return data || [];
+        },
+      }),
+    ]);
   };
 
   return {
     onFamilyCreated,
     onFamilyJoined,
     onFamilyLeft,
+    onFamilySwitch,
+    prefetchFamilyData,
   };
 }

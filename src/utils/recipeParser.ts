@@ -1,9 +1,13 @@
 import type { Unit } from "@/types";
 
+// =============================================================================
+// Types
+// =============================================================================
+
 interface ParsedRecipe {
   name: string;
   servings: number;
-  ingredients: Array<{ name: string; quantity: number; unit: Unit }>;
+  ingredients: ParsedIngredient[];
   steps: string[];
   prepTime?: number;
   cookTime?: number;
@@ -11,176 +15,215 @@ interface ParsedRecipe {
   imageUrl?: string;
 }
 
-// Parse quantity from ingredient string
-function parseQuantity(text: string): {
+interface ParsedIngredient {
+  name: string;
   quantity: number;
   unit: Unit;
-  name: string;
-} {
-  // Items that should never be measured in pieces (default to grams or ml)
-  const liquidItems = [
-    "sauce",
-    "oil",
-    "vinegar",
-    "soy",
-    "cream",
-    "milk",
-    "water",
-    "stock",
-    "broth",
-    "juice",
-    "wine",
-    "paste",
-    "honey",
-    "syrup",
-  ];
+}
 
-  const meatItems = [
-    "mince",
-    "minced",
-    "ground beef",
-    "ground pork",
-    "ground chicken",
-    "beef",
-    "pork",
-    "chicken",
-    "lamb",
-    "turkey",
-    "fish",
-    "salmon",
-    "bacon",
-    "sausage",
-    "ham",
-  ];
+// =============================================================================
+// Constants
+// =============================================================================
 
-  // Common unit mappings
-  const unitMap: Record<string, Unit> = {
-    g: "g",
-    gram: "g",
-    grams: "g",
-    kg: "kg",
-    kilogram: "kg",
-    kilograms: "kg",
-    ml: "ml",
-    milliliter: "ml",
-    milliliters: "ml",
-    l: "l",
-    liter: "l",
-    liters: "l",
-    piece: "pcs",
-    pieces: "pcs",
-    pcs: "pcs",
-    unit: "pcs",
-    units: "pcs",
-    clove: "pcs",
-    cloves: "pcs",
-    bunch: "pcs",
-    bunches: "pcs",
-  };
+const LIQUID_ITEMS = [
+  "sauce",
+  "oil",
+  "vinegar",
+  "soy",
+  "cream",
+  "milk",
+  "water",
+  "stock",
+  "broth",
+  "juice",
+  "wine",
+  "paste",
+  "honey",
+  "syrup",
+];
 
-  // Handle fractions (½, ¼, etc.)
-  const fractionMap: Record<string, number> = {
-    "½": 0.5,
-    "¼": 0.25,
-    "¾": 0.75,
-    "⅓": 0.33,
-    "⅔": 0.67,
-    "⅛": 0.125,
-    "⅜": 0.375,
-    "⅝": 0.625,
-    "⅞": 0.875,
-  };
+const MEAT_ITEMS = [
+  "mince",
+  "minced",
+  "ground beef",
+  "ground pork",
+  "ground chicken",
+  "beef",
+  "pork",
+  "chicken",
+  "lamb",
+  "turkey",
+  "fish",
+  "salmon",
+  "bacon",
+  "sausage",
+  "ham",
+];
 
-  // Replace fractions with decimal
-  let cleanText = text;
-  for (const [fraction, decimal] of Object.entries(fractionMap)) {
-    cleanText = cleanText.replace(fraction, decimal.toString());
+const UNIT_MAP: Record<string, Unit> = {
+  g: "g",
+  gram: "g",
+  grams: "g",
+  kg: "kg",
+  kilogram: "kg",
+  kilograms: "kg",
+  ml: "ml",
+  milliliter: "ml",
+  milliliters: "ml",
+  l: "l",
+  liter: "l",
+  liters: "l",
+  cup: "cup",
+  cups: "cup",
+  piece: "pcs",
+  pieces: "pcs",
+  pcs: "pcs",
+  unit: "pcs",
+  units: "pcs",
+  clove: "pcs",
+  cloves: "pcs",
+  bunch: "pcs",
+  bunches: "pcs",
+};
+
+const FRACTION_MAP: Record<string, number> = {
+  "½": 0.5,
+  "¼": 0.25,
+  "¾": 0.75,
+  "⅓": 0.33,
+  "⅔": 0.67,
+  "⅛": 0.125,
+  "⅜": 0.375,
+  "⅝": 0.625,
+  "⅞": 0.875,
+};
+
+const INGREDIENT_PATTERN =
+  /^(\d+(?:\.\d+)?)\s*(g|kg|ml|l|gram|grams|kilogram|kilograms|milliliter|milliliters|liter|liters|piece|pieces|pcs|unit|units|clove|cloves|packet|packets|bag|bags|bunch|bunches|cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp)?\s*(.+)$/i;
+
+const CORS_PROXIES = [
+  (url: string) =>
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url: string) =>
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_SERVINGS = 4;
+
+// =============================================================================
+// Helper Functions - Ingredient Parsing
+// =============================================================================
+
+const replaceFractions = (text: string): string => {
+  let result = text;
+  for (const [fraction, decimal] of Object.entries(FRACTION_MAP)) {
+    result = result.replace(fraction, decimal.toString());
   }
+  return result;
+};
 
-  // Try to match pattern: number + unit + name
-  const match = cleanText.match(
-    /^(\d+(?:\.\d+)?)\s*(g|kg|ml|l|gram|grams|kilogram|kilograms|milliliter|milliliters|liter|liters|piece|pieces|pcs|unit|units|clove|cloves|packet|packets|bag|bags|bunch|bunches|cup|cups|tablespoon|tablespoons|tbsp|teaspoon|teaspoons|tsp)?\s*(.+)$/i,
-  );
+const isLiquidItem = (name: string): boolean =>
+  LIQUID_ITEMS.some((liquid) => name.includes(liquid));
+
+const isMeatItem = (name: string): boolean =>
+  MEAT_ITEMS.some((meat) => name.includes(meat));
+
+const convertVolumeUnit = (
+  quantity: number,
+  unitStr: string,
+  name: string,
+): ParsedIngredient | null => {
+  if (["tablespoon", "tablespoons", "tbsp"].includes(unitStr)) {
+    return { quantity: quantity * 15, unit: "ml", name };
+  }
+  if (["teaspoon", "teaspoons", "tsp"].includes(unitStr)) {
+    return { quantity: quantity * 5, unit: "ml", name };
+  }
+  return null;
+};
+
+const convertPacketUnit = (
+  quantity: number,
+  name: string,
+): ParsedIngredient => {
+  const lowerName = name.toLowerCase();
+
+  if (isLiquidItem(lowerName)) {
+    return { quantity: quantity * 50, unit: "ml", name };
+  }
+  if (isMeatItem(lowerName)) {
+    return { quantity: quantity * 200, unit: "g", name };
+  }
+  return { quantity: quantity * 100, unit: "g", name };
+};
+
+const cleanIngredientName = (name: string): string => {
+  // Remove leading quantity/unit fragments like "/1 pint", "1/2 cup", etc.
+  // that got incorrectly included in the name
+  return name
+    .replace(/^[\/\d\s]*(pint|cup|tablespoon|tbsp|teaspoon|tsp|oz|ounce|lb|pound|g|kg|ml|l)s?\s+/i, "")
+    .trim();
+};
+
+const parseQuantity = (text: string): ParsedIngredient => {
+  const cleanText = replaceFractions(text);
+  const match = cleanText.match(INGREDIENT_PATTERN);
 
   if (match) {
     const quantity = parseFloat(match[1] ?? "");
     const unitStr = match[2]?.toLowerCase() || "";
-    const name = (match[3] || "").trim();
-    const lowerName = name.toLowerCase();
+    const name = cleanIngredientName((match[3] || "").trim());
 
-    // Convert cup/tablespoon/teaspoon to ml
-    if (unitStr === "cup" || unitStr === "cups") {
-      return { quantity: quantity * 250, unit: "ml", name };
-    }
-    if (
-      unitStr === "tablespoon" ||
-      unitStr === "tablespoons" ||
-      unitStr === "tbsp"
-    ) {
-      return { quantity: quantity * 15, unit: "ml", name };
-    }
-    if (
-      unitStr === "teaspoon" ||
-      unitStr === "teaspoons" ||
-      unitStr === "tsp"
-    ) {
-      return { quantity: quantity * 5, unit: "ml", name };
+    // Handle volume conversions (cups, tablespoons, teaspoons)
+    const volumeResult = convertVolumeUnit(quantity, unitStr, name);
+    if (volumeResult) return volumeResult;
+
+    // Handle packet/bag items
+    if (["packet", "packets", "bag", "bags"].includes(unitStr)) {
+      return convertPacketUnit(quantity, name);
     }
 
-    // Handle packet/bag items - convert to sensible defaults
-    if (
-      unitStr === "packet" ||
-      unitStr === "packets" ||
-      unitStr === "bag" ||
-      unitStr === "bags"
-    ) {
-      // Check if it's a liquid/sauce item
-      if (liquidItems.some((liquid) => lowerName.includes(liquid))) {
-        return { quantity: quantity * 50, unit: "ml", name }; // Assume 50ml per packet
-      }
-      // Check if it's a meat item
-      if (meatItems.some((meat) => lowerName.includes(meat))) {
-        return { quantity: quantity * 200, unit: "g", name }; // Assume 200g per packet/serving
-      }
-      // Default for packets: 100g
-      return { quantity: quantity * 100, unit: "g", name };
-    }
-
-    const unit = unitMap[unitStr || ""] || "pcs";
+    const unit = UNIT_MAP[unitStr] || "pcs";
     return { quantity, unit, name };
   }
 
-  // No quantity specified - apply intelligent defaults
-  const lowerText = text.trim().toLowerCase();
+  // No quantity specified - clean up and apply intelligent defaults
+  const cleanedName = cleanIngredientName(text.trim());
+  const lowerText = cleanedName.toLowerCase();
 
-  // Check for liquid items - default to 50ml
-  if (liquidItems.some((liquid) => lowerText.includes(liquid))) {
-    return { quantity: 50, unit: "ml", name: text.trim() };
+  if (isLiquidItem(lowerText)) {
+    return { quantity: 50, unit: "ml", name: cleanedName };
+  }
+  if (isMeatItem(lowerText)) {
+    return { quantity: 200, unit: "g", name: cleanedName };
   }
 
-  // Check for meat items - default to 200g per serving (800g for 4 servings)
-  if (meatItems.some((meat) => lowerText.includes(meat))) {
-    return { quantity: 200, unit: "g", name: text.trim() };
-  }
+  return { quantity: 1, unit: "pcs", name: cleanedName };
+};
 
-  // Default: treat as 1 piece
-  return { quantity: 1, unit: "pcs", name: text.trim() };
-}
+// =============================================================================
+// Helper Functions - Time Parsing
+// =============================================================================
 
-// Convert time string to minutes (handles both ISO 8601 duration and plain text)
-function parseTime(timeStr: string): number | undefined {
+const parseIso8601Duration = (timeStr: string) => {
+  let totalMinutes = 0;
+  const hourMatch = timeStr.match(/(\d+)H/);
+  const minuteMatch = timeStr.match(/(\d+)M/);
+
+  if (hourMatch?.[1]) totalMinutes += parseInt(hourMatch[1]) * 60;
+  if (minuteMatch?.[1]) totalMinutes += parseInt(minuteMatch[1]);
+
+  return totalMinutes > 0 ? totalMinutes : undefined;
+};
+
+const parseTime = (timeStr: string) => {
   if (!timeStr) return undefined;
 
   // Handle ISO 8601 duration format (e.g., PT30M, PT1H30M)
   if (timeStr.startsWith("PT")) {
-    let totalMinutes = 0;
-    const hourMatch = timeStr.match(/(\d+)H/);
-    const minuteMatch = timeStr.match(/(\d+)M/);
-
-    if (hourMatch && hourMatch[1]) totalMinutes += parseInt(hourMatch[1]) * 60;
-    if (minuteMatch && minuteMatch[1]) totalMinutes += parseInt(minuteMatch[1]);
-
-    return totalMinutes > 0 ? totalMinutes : undefined;
+    return parseIso8601Duration(timeStr);
   }
 
   // Handle plain text format
@@ -190,186 +233,271 @@ function parseTime(timeStr: string): number | undefined {
   const value = parseInt(match[1]!);
   const unit = match[2]!.toLowerCase();
 
-  if (unit.startsWith("h")) {
-    return value * 60;
-  }
-  return value;
-}
+  return unit.startsWith("h") ? value * 60 : value;
+};
 
-export async function fetchRecipeFromUrl(
+// =============================================================================
+// Helper Functions - Network
+// =============================================================================
+
+const fetchWithTimeout = async (
   url: string,
-): Promise<ParsedRecipe | null> {
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    let html: string;
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
 
-    // Check if URL is from a different origin (will need CORS proxy)
-    const needsProxy = !url.startsWith(window.location.origin);
+const fetchWithCorsProxy = async (url: string) => {
+  const errors: string[] = [];
 
-    if (needsProxy) {
-      // Use CORS proxy for external URLs to avoid CORS errors
-      const corsProxy = "https://api.allorigins.win/raw?url=";
-      const proxyUrl = corsProxy + encodeURIComponent(url);
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error("Failed to fetch recipe");
-      html = await response.text();
-    } else {
-      // Direct fetch for same-origin URLs
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch recipe");
-      html = await response.text();
-    }
-
-    // Try to find JSON-LD structured data (schema.org Recipe)
-    const jsonLdMatch = html.match(
-      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
-    );
-
-    if (jsonLdMatch) {
-      for (const script of jsonLdMatch) {
-        const jsonContent = script.replace(/<script[^>]*>|<\/script>/gi, "");
-        try {
-          const data = JSON.parse(jsonContent);
-
-          // Handle both single recipe and array of items
-          const recipe = Array.isArray(data)
-            ? data.find((item: any) => item["@type"] === "Recipe")
-            : data["@type"] === "Recipe"
-              ? data
-              : null;
-
-          if (recipe) {
-            const ingredients = (recipe.recipeIngredient || []).map(
-              (ing: string) => {
-                return parseQuantity(ing);
-              },
-            );
-
-            const steps = (recipe.recipeInstructions || [])
-              .map((instruction: any) => {
-                if (typeof instruction === "string") return instruction;
-                if (instruction.text) return instruction.text;
-                if (instruction["@type"] === "HowToStep" && instruction.text)
-                  return instruction.text;
-                return "";
-              })
-              .filter((s: string) => s.length > 0);
-
-            const tags: string[] = [];
-            if (recipe.recipeCategory) tags.push(recipe.recipeCategory);
-            if (recipe.recipeCuisine) tags.push(recipe.recipeCuisine);
-            if (recipe.keywords) {
-              const keywords = Array.isArray(recipe.keywords)
-                ? recipe.keywords
-                : recipe.keywords.split(",").map((k: string) => k.trim());
-              tags.push(...keywords);
-            }
-
-            // Parse servings - handle both numbers and strings like "2 people"
-            let servings = 4;
-            if (recipe.recipeYield) {
-              const yieldMatch = String(recipe.recipeYield).match(/(\d+)/);
-              servings =
-                yieldMatch && yieldMatch[1] ? parseInt(yieldMatch[1]) : 4;
-            }
-
-            // Extract image URL
-            let imageUrl: string | undefined;
-            if (recipe.image) {
-              if (typeof recipe.image === "string") {
-                imageUrl = recipe.image;
-              } else if (
-                Array.isArray(recipe.image) &&
-                recipe.image.length > 0
-              ) {
-                const firstImage = recipe.image[0];
-                imageUrl =
-                  typeof firstImage === "string" ? firstImage : firstImage?.url;
-              } else if (
-                typeof recipe.image === "object" &&
-                recipe.image !== null
-              ) {
-                imageUrl =
-                  recipe.image.url || recipe.image.contentUrl || undefined;
-              }
-            }
-
-            // Ensure imageUrl is actually a string, not an object
-            if (imageUrl && typeof imageUrl !== "string") {
-              imageUrl = undefined;
-            }
-
-            return {
-              name: recipe.name || "Imported Recipe",
-              servings,
-              ingredients,
-              steps,
-              prepTime: parseTime(recipe.prepTime),
-              cookTime: parseTime(recipe.cookTime),
-              tags: tags.length > 0 ? tags : undefined,
-              imageUrl,
-            };
-          }
-        } catch (e) {
-          console.error("Error parsing JSON-LD:", e);
-        }
+  for (const buildProxyUrl of CORS_PROXIES) {
+    const proxyUrl = buildProxyUrl(url);
+    try {
+      const response = await fetchWithTimeout(proxyUrl);
+      if (response.ok) {
+        return await response.text();
       }
-    }
-
-    // If no JSON-LD found, try common HTML patterns
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-
-    // Try to find recipe name
-    const nameEl = doc.querySelector(
-      'h1[itemprop="name"], h1.recipe-title, [class*="recipe-name"], [class*="recipe-title"]',
-    );
-    const name = nameEl?.textContent?.trim() || "Imported Recipe";
-
-    // Try to find ingredients
-    const ingredientEls = doc.querySelectorAll(
-      '[itemprop="recipeIngredient"], .ingredient, [class*="ingredient"]',
-    );
-    const ingredients = Array.from(ingredientEls)
-      .map((el) => parseQuantity(el.textContent?.trim() || ""))
-      .filter((ing) => ing.name.length > 0);
-
-    // Try to find steps
-    const stepEls = doc.querySelectorAll(
-      '[itemprop="recipeInstructions"] li, .instruction, [class*="instruction"]',
-    );
-    const steps = Array.from(stepEls)
-      .map((el) => el.textContent?.trim() || "")
-      .filter((s) => s.length > 0);
-
-    if (ingredients.length > 0 || steps.length > 0) {
-      return {
-        name,
-        servings: 4,
-        ingredients:
-          ingredients.length > 0
-            ? ingredients
-            : [{ name: "", quantity: 0, unit: "g" }],
-        steps: steps.length > 0 ? steps : [""],
-        tags: undefined,
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error fetching recipe:", error);
-
-    // Provide more specific error messages
-    if (error instanceof Error) {
-      if (error.message.includes("Failed to fetch")) {
-        throw new Error(
-          "Could not access the recipe URL. The website may be blocking automated access, or the URL may be incorrect.",
+      errors.push(`Proxy returned ${response.status}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        errors.push(
+          error.name === "AbortError" ? "Request timed out" : error.message,
         );
       }
-      throw new Error(error.message);
     }
+  }
 
-    throw new Error(
+  throw new Error(
+    `All CORS proxies failed. The recipe website may be blocking automated access. Errors: ${errors.join(", ")}`,
+  );
+};
+
+// =============================================================================
+// Helper Functions - JSON-LD Parsing
+// =============================================================================
+
+const extractImageUrl = (image: unknown) => {
+  if (typeof image === "string") {
+    return image;
+  }
+
+  if (Array.isArray(image) && image.length > 0) {
+    const firstImage = image[0];
+    return typeof firstImage === "string" ? firstImage : firstImage?.url;
+  }
+
+  if (typeof image === "object" && image !== null) {
+    const imgObj = image as Record<string, unknown>;
+    const url = imgObj.url || imgObj.contentUrl;
+    return typeof url === "string" ? url : undefined;
+  }
+
+  return undefined;
+};
+
+const MAX_TAGS = 3;
+
+const extractTags = (recipe: Record<string, unknown>) => {
+  const tags: string[] = [];
+
+  if (recipe.recipeCategory) tags.push(String(recipe.recipeCategory));
+  if (recipe.recipeCuisine) tags.push(String(recipe.recipeCuisine));
+
+  if (recipe.keywords) {
+    const keywords = Array.isArray(recipe.keywords)
+      ? recipe.keywords
+      : String(recipe.keywords)
+          .split(",")
+          .map((k) => k.trim());
+    tags.push(...keywords);
+  }
+
+  return tags.slice(0, MAX_TAGS);
+};
+
+const extractServings = (recipeYield: unknown) => {
+  if (!recipeYield) return DEFAULT_SERVINGS;
+
+  const match = String(recipeYield).match(/(\d+)/);
+  return match?.[1] ? parseInt(match[1]) : DEFAULT_SERVINGS;
+};
+
+const extractSteps = (instructions: unknown[]): string[] => {
+  return instructions
+    .map((instruction) => {
+      if (typeof instruction === "string") return instruction;
+      if (typeof instruction === "object" && instruction !== null) {
+        const obj = instruction as Record<string, unknown>;
+        if (obj.text) return String(obj.text);
+      }
+      return "";
+    })
+    .filter((s) => s.length > 0);
+};
+
+const parseJsonLdRecipe = (recipe: Record<string, unknown>): ParsedRecipe => {
+  const ingredients = ((recipe.recipeIngredient as string[]) || []).map(
+    parseQuantity,
+  );
+  const steps = extractSteps((recipe.recipeInstructions as unknown[]) || []);
+  const tags = extractTags(recipe);
+  const imageUrl = extractImageUrl(recipe.image);
+
+  return {
+    name: String(recipe.name || "Imported Recipe"),
+    servings: extractServings(recipe.recipeYield),
+    ingredients,
+    steps,
+    prepTime: parseTime(String(recipe.prepTime || "")),
+    cookTime: parseTime(String(recipe.cookTime || "")),
+    tags: tags.length > 0 ? tags : undefined,
+    imageUrl: typeof imageUrl === "string" ? imageUrl : undefined,
+  };
+};
+
+const findRecipeInJsonLd = (data: unknown): Record<string, unknown> | null => {
+  if (Array.isArray(data)) {
+    return data.find((item) => item?.["@type"] === "Recipe") || null;
+  }
+
+  if (typeof data === "object" && data !== null) {
+    const obj = data as Record<string, unknown>;
+    if (obj["@type"] === "Recipe") return obj;
+
+    // Check for @graph structure
+    if (Array.isArray(obj["@graph"])) {
+      return obj["@graph"].find((item) => item?.["@type"] === "Recipe") || null;
+    }
+  }
+
+  return null;
+};
+
+const parseJsonLdFromHtml = (html: string): ParsedRecipe | null => {
+  const jsonLdPattern =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const matches = html.match(jsonLdPattern);
+
+  if (!matches) return null;
+
+  for (const script of matches) {
+    const jsonContent = script.replace(/<script[^>]*>|<\/script>/gi, "");
+    try {
+      const data = JSON.parse(jsonContent);
+      const recipe = findRecipeInJsonLd(data);
+      if (recipe) {
+        return parseJsonLdRecipe(recipe);
+      }
+    } catch {
+      // Continue to next script tag
+    }
+  }
+
+  return null;
+};
+
+// =============================================================================
+// Helper Functions - HTML Fallback Parsing
+// =============================================================================
+
+const parseHtmlFallback = (html: string): ParsedRecipe | null => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  const nameEl = doc.querySelector(
+    'h1[itemprop="name"], h1.recipe-title, [class*="recipe-name"], [class*="recipe-title"]',
+  );
+  const name = nameEl?.textContent?.trim() || "Imported Recipe";
+
+  const ingredientEls = doc.querySelectorAll(
+    '[itemprop="recipeIngredient"], .ingredient, [class*="ingredient"]',
+  );
+  const ingredients = Array.from(ingredientEls)
+    .map((el) => parseQuantity(el.textContent?.trim() || ""))
+    .filter((ing) => ing.name.length > 0);
+
+  const stepEls = doc.querySelectorAll(
+    '[itemprop="recipeInstructions"] li, .instruction, [class*="instruction"]',
+  );
+  const steps = Array.from(stepEls)
+    .map((el) => el.textContent?.trim() || "")
+    .filter((s) => s.length > 0);
+
+  if (ingredients.length === 0 && steps.length === 0) {
+    return null;
+  }
+
+  return {
+    name,
+    servings: DEFAULT_SERVINGS,
+    ingredients:
+      ingredients.length > 0
+        ? ingredients
+        : [{ name: "", quantity: 0, unit: "g" }],
+    steps: steps.length > 0 ? steps : [""],
+    tags: undefined,
+  };
+};
+
+// =============================================================================
+// Helper Functions - Error Handling
+// =============================================================================
+
+const createUserFriendlyError = (error: unknown): Error => {
+  if (!(error instanceof Error)) {
+    return new Error(
       "Failed to import recipe. Please check the URL or enter the recipe manually.",
     );
   }
-}
+
+  const message = error.message;
+
+  if (message.includes("Failed to fetch") || message.includes("NetworkError")) {
+    return new Error(
+      "Could not access the recipe URL. The website may be blocking automated access, or the URL may be incorrect. Try a different recipe site.",
+    );
+  }
+
+  if (
+    message.includes("CORS proxies failed") ||
+    message.includes("timed out")
+  ) {
+    return error;
+  }
+
+  return error;
+};
+
+// =============================================================================
+// Main Export
+// =============================================================================
+
+export const fetchRecipeFromUrl = async (url: string) => {
+  try {
+    const needsProxy = !url.startsWith(window.location.origin);
+
+    const html = needsProxy
+      ? await fetchWithCorsProxy(url)
+      : await fetchWithTimeout(url).then((res) => {
+          if (!res.ok) throw new Error("Failed to fetch recipe");
+          return res.text();
+        });
+
+    // Try JSON-LD first (most reliable)
+    const jsonLdResult = parseJsonLdFromHtml(html);
+    if (jsonLdResult) return jsonLdResult;
+
+    // Fall back to HTML parsing
+    return parseHtmlFallback(html);
+  } catch (error) {
+    console.error("Error fetching recipe:", error);
+    throw createUserFriendlyError(error);
+  }
+};

@@ -1,21 +1,24 @@
-import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
-import type { ShoppingListItem } from '@/types';
-import { useAuthStore } from './auth';
-import { smartRound } from '@/utils/roundingHelpers';
-import { useMealsQuery } from '@/api/meals';
-import { useCalendarQuery } from '@/api/calendar';
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
+import type { ShoppingListItem } from "@/types";
+import { smartRound } from "@/utils/roundingHelpers";
+import { useMealsQuery } from "@/api/meals";
+import { useCalendarQuery } from "@/api/calendar";
+import {
+  normalizeIngredientName,
+  toBaseUnit,
+  toDisplayUnit,
+} from "@/utils/ingredientNormalizer";
+import { groupByCategory } from "@/utils/ingredientCategorizer";
 
-export const useShoppingListStore = defineStore('shoppingList', () => {
-  const authStore = useAuthStore();
-
+export const useShoppingListStore = defineStore("shoppingList", () => {
   // Use reactive queries instead of reading from cache
   const { data: mealsData } = useMealsQuery();
   const { data: calendarData } = useCalendarQuery();
 
   const dateRangeFilter = ref<{ start: string; end: string } | null>(null);
 
-  const items = computed<ShoppingListItem[]>(() => {
+  const allItems = computed<ShoppingListItem[]>(() => {
     const aggregationMap = new Map<string, ShoppingListItem>();
 
     // Use reactive query data
@@ -38,44 +41,57 @@ export const useShoppingListStore = defineStore('shoppingList', () => {
       if (!meal) continue;
 
       // Calculate servings multiplier
-      const actualServings = calendarMeal.servingsOverride ?? meal.defaultServings;
+      const actualServings =
+        calendarMeal.servingsOverride ?? meal.defaultServings;
       const multiplier = actualServings / meal.defaultServings;
 
-      // Aggregate ingredients
+      // Aggregate ingredients with unit-group normalization
       for (const ingredient of meal.ingredients) {
-        // Normalize the key to lowercase for case-insensitive aggregation
-        const normalizedName = ingredient.name.toLowerCase().trim();
-        const key = `${normalizedName}-${ingredient.unit}`;
+        const cleanedName = normalizeIngredientName(ingredient.name);
+        const baseName = cleanedName.replace(/\s*\(.*\)\s*$/, "").trim();
+        if (["water"].includes(baseName)) continue;
         const scaledQuantity = ingredient.quantity * multiplier;
+        const { quantity: baseQuantity, group } = toBaseUnit(
+          scaledQuantity,
+          ingredient.unit,
+        );
+        const key = `${cleanedName}-${group}`;
 
         if (aggregationMap.has(key)) {
           const existing = aggregationMap.get(key)!;
-          existing.totalQuantity += scaledQuantity;
+          existing.totalQuantity += baseQuantity;
           if (!existing.mealNames.includes(meal.name)) {
             existing.mealNames.push(meal.name);
           }
         } else {
           // Capitalize first letter for display
-          const displayName = ingredient.name.trim().charAt(0).toUpperCase() +
-                             ingredient.name.trim().slice(1).toLowerCase();
+          const displayName =
+            cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1);
           aggregationMap.set(key, {
             ingredientName: displayName,
-            totalQuantity: scaledQuantity,
-            unit: ingredient.unit,
+            totalQuantity: baseQuantity,
+            unit: "g", // placeholder, replaced by toDisplayUnit below
             mealNames: [meal.name],
           });
         }
       }
     }
 
-    // Convert Map to sorted array and apply smart rounding
-    return Array.from(aggregationMap.values())
-      .map((item) => ({
-        ...item,
-        totalQuantity: smartRound(item.totalQuantity, item.unit),
-      }))
+    // Convert base units to display units, then apply smart rounding
+    return Array.from(aggregationMap.entries())
+      .map(([key, item]) => {
+        const group = key.split("-").pop() as "mass" | "volume" | "count";
+        const { quantity, unit } = toDisplayUnit(item.totalQuantity, group);
+        return {
+          ...item,
+          totalQuantity: smartRound(quantity, unit),
+          unit,
+        };
+      })
       .sort((a, b) => a.ingredientName.localeCompare(b.ingredientName));
   });
+
+  const categorizedItems = computed(() => groupByCategory(allItems.value));
 
   const setDateRangeFilter = (start: string | null, end: string | null) => {
     if (start && end) {
@@ -90,7 +106,8 @@ export const useShoppingListStore = defineStore('shoppingList', () => {
   };
 
   return {
-    items,
+    allItems,
+    categorizedItems,
     dateRangeFilter: computed(() => dateRangeFilter.value),
     setDateRangeFilter,
     clearFilter,

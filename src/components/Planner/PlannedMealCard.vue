@@ -1,51 +1,10 @@
-<template>
-  <div
-    class="card bg-white shadow-sm border border-base-300 hover:border-primary hover:shadow-md transition-all cursor-pointer group overflow-hidden"
-    @click="handleEdit"
-  >
-    <!-- Meal Image -->
-    <div class="relative h-32 overflow-hidden">
-      <img
-        v-if="meal?.imageUrl"
-        :src="meal.imageUrl"
-        :alt="meal.name"
-        class="w-full h-full object-cover"
-      />
-      <div
-        v-else
-        class="w-full h-full flex items-center justify-center text-4xl bg-gradient-to-br from-primary/20 to-secondary/20"
-      >
-        🍽️
-      </div>
-    </div>
-
-    <div class="card-body p-3">
-      <div class="flex justify-between items-start">
-        <div class="flex-1">
-          <h4 class="font-semibold text-sm group-hover:text-primary transition-colors">
-            {{ meal?.name || 'Unknown Meal' }}
-          </h4>
-          <p class="text-xs text-base-content/70 mt-1">
-            {{ servings }} servings
-          </p>
-        </div>
-        <button
-          class="btn btn-ghost btn-xs btn-circle hover:btn-error"
-          @click.stop="handleRemove"
-          title="Remove from calendar"
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { CalendarMeal, Meal } from '@/types';
-import { useMealsQuery } from '@/api/meals';
-import { useCalendarMutations } from '@/api/calendar';
+import { computed, ref } from "vue";
+import type { CalendarMeal, Meal } from "@/types";
+import { useMealsQuery } from "@/api/meals";
+import { useCalendarMutations } from "@/api/calendar";
+import { useDragAndDrop } from "@/composables/useDragAndDrop";
+import MealCardBase from "@/components/MealCardBase.vue";
 
 const props = defineProps<{
   calendarMeal: CalendarMeal;
@@ -57,15 +16,13 @@ const emit = defineEmits<{
 
 const { data: meals } = useMealsQuery();
 const { removeMealFromDate } = useCalendarMutations();
+const { startDrag, endDrag } = useDragAndDrop();
+
+const isDragging = ref(false);
 
 const meal = computed(() => {
   if (!meals.value) return undefined;
   return meals.value.find((m) => m.id === props.calendarMeal.mealId);
-});
-
-const servings = computed(() => {
-  if (!meal.value) return 0;
-  return props.calendarMeal.servingsOverride ?? meal.value.defaultServings;
 });
 
 const handleRemove = () => {
@@ -77,7 +34,41 @@ const handleRemove = () => {
 
 const handleEdit = () => {
   if (meal.value) {
-    emit('edit', meal.value);
+    emit("edit", meal.value);
   }
 };
+
+const handleDragStart = (event: DragEvent) => {
+  isDragging.value = true;
+  startDrag(props.calendarMeal.mealId, props.calendarMeal.date);
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = "move";
+  }
+};
+
+const handleDragEnd = () => {
+  isDragging.value = false;
+  endDrag();
+};
 </script>
+
+<template>
+  <MealCardBase
+    v-if="meal"
+    :meal="meal"
+    :servings-override="calendarMeal.servingsOverride"
+    :draggable="true"
+    class="h-80"
+    :class="{ 'opacity-50 cursor-grabbing': isDragging }"
+    @dragstart="handleDragStart"
+    @dragend="handleDragEnd"
+    @click="handleEdit"
+  >
+    <template #header-actions>
+      <i
+        class="pi pi-times text-gray-300 cursor-pointer"
+        @click.stop="handleRemove"
+      />
+    </template>
+  </MealCardBase>
+</template>

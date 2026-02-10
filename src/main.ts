@@ -6,6 +6,7 @@ import App from "./App.vue";
 import router from "./router";
 import PrimeVue from "primevue/config";
 import Aura from "@primeuix/themes/aura";
+import { definePreset } from "@primeuix/themes";
 
 /**
  * Vue Query client instance configured with aggressive data fetching and caching strategies.
@@ -48,9 +49,27 @@ const pinia = createPinia();
 
 app.use(pinia);
 app.use(router);
+const MealPlannerPreset = definePreset(Aura, {
+  semantic: {
+    primary: {
+      50: "#FEF3E6",
+      100: "#FDE0C0",
+      200: "#FBCC96",
+      300: "#F9B76C",
+      400: "#F7A04A",
+      500: "#F58426",
+      600: "#E07020",
+      700: "#B85A1A",
+      800: "#904514",
+      900: "#6B330F",
+      950: "#48220A",
+    },
+  },
+});
+
 app.use(PrimeVue, {
   theme: {
-    preset: Aura,
+    preset: MealPlannerPreset,
   },
 });
 app.use(VueQueryPlugin, { queryClient });

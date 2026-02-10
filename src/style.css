@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
-@plugin "daisyui";
 
 @layer base {
   :root {
@@ -8,7 +7,6 @@
   }
 
   body {
-    margin: 3rem;
     min-height: 100vh;
   }
 

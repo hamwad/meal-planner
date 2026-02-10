@@ -2,8 +2,9 @@
 import { v4 as uuidv4 } from "uuid";
 import { useMealMutations } from "@/api/meals";
 import { fetchRecipeFromUrl } from "@/utils/recipeParser";
-import type { Meal, Ingredient } from "@/types";
+import type { Meal, Ingredient, Unit } from "@/types";
 import { useAddMealForm } from "@/composables/useAddMealForm";
+import { toSentenceCase } from "@/utils/stringHelpers";
 
 interface Props {
   meal?: Meal | null;
@@ -54,6 +55,9 @@ const deleteConfirmation = ref(false);
 let deleteConfirmationTimer: ReturnType<typeof setTimeout> | null = null;
 const tagInput = ref("");
 const editingMealId = ref<string | null>(null);
+const baseIngredients = ref<
+  Array<{ name: string; quantity: number; unit: Unit }>
+>([]);
 
 // Computed
 const isEditMode = computed(() => !!editingMealId.value);
@@ -65,19 +69,30 @@ watch(
     if (newMeal) {
       editingMealId.value = newMeal.id;
       populateForm(newMeal);
+      baseIngredients.value =
+        newMeal.ingredients?.map((ing) => ({
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+        })) ?? [];
     } else {
       editingMealId.value = null;
       resetForm();
+      baseIngredients.value = [];
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
-// Watch for servings changes and scale ingredients accordingly
-watch(defaultServings, (newServings, oldServings) => {
-  if (originalServings.value !== null && newServings > 0 && oldServings > 0) {
+// Watch for servings changes and scale ingredients from base quantities
+watch(defaultServings, (newServings) => {
+  if (
+    originalServings.value !== null &&
+    newServings > 0 &&
+    baseIngredients.value.length > 0
+  ) {
     const scaleFactor = newServings / originalServings.value;
-    const scaledIngredients = values.ingredients.map((ing) => ({
+    const scaledIngredients = baseIngredients.value.map((ing) => ({
       ...ing,
       quantity: Math.round(ing.quantity * scaleFactor * 10) / 10,
     }));
@@ -105,6 +120,12 @@ const fetchRecipe = async () => {
         tags: recipe.tags || [],
         imageUrl: recipe.imageUrl || "",
       });
+      baseIngredients.value =
+        recipe.ingredients?.map((ing) => ({
+          name: ing.name,
+          quantity: ing.quantity,
+          unit: ing.unit,
+        })) ?? [];
     } else {
       recipeErrorMessage.value = "Could not parse recipe from this URL.";
     }
@@ -116,45 +137,61 @@ const fetchRecipe = async () => {
   }
 };
 
-const onSubmit = handleSubmit(async (formValues) => {
-  const validIngredients: Ingredient[] = formValues.ingredients
-    .filter((i) => i.name.trim() && i.quantity > 0)
-    .map((i) => ({
-      id: uuidv4(),
-      name: i.name.trim(),
-      quantity: i.quantity,
-      unit: i.unit,
-    }));
+const submitError = ref<string | null>(null);
 
-  const validSteps = formValues.recipeSteps
-    .map((s) => s.trim())
-    .filter((s) => s !== "");
+const onSubmit = handleSubmit(
+  async (formValues) => {
+    submitError.value = null;
 
-  const mealData: Meal = {
-    id: editingMealId.value || uuidv4(),
-    name: formValues.mealName.trim(),
-    defaultServings: formValues.defaultServings,
-    ingredients: validIngredients,
-    recipe:
-      validSteps.length > 0
-        ? {
-            steps: validSteps,
-            prepTime: formValues.prepTime,
-            cookTime: formValues.cookTime,
-          }
-        : undefined,
-    tags: formValues.tags.length > 0 ? formValues.tags : undefined,
-    imageUrl: formValues.imageUrl?.trim() || undefined,
-  };
+    const validIngredients: Ingredient[] =
+      formValues.ingredients
+        ?.filter((i) => i.name.trim() && i.quantity > 0)
+        .map((i) => ({
+          id: uuidv4(),
+          name: toSentenceCase(i.name.trim()),
+          quantity: i.quantity,
+          unit: i.unit,
+        })) ?? [];
 
-  if (isEditMode.value) {
-    await updateMeal.mutateAsync({ id: mealData.id, meal: mealData });
-  } else {
-    await addMeal.mutateAsync(mealData);
-  }
+    const validSteps = formValues.recipeSteps
+      ?.map((s) => s.trim())
+      .filter((s) => s !== "");
 
-  emit("submit");
-});
+    const mealData: Meal = {
+      id: editingMealId.value || uuidv4(),
+      name: toSentenceCase(formValues.mealName.trim()),
+      defaultServings: formValues.defaultServings,
+      ingredients: validIngredients,
+      recipe:
+        validSteps.length > 0
+          ? {
+              steps: validSteps,
+              prepTime: formValues.prepTime,
+              cookTime: formValues.cookTime,
+            }
+          : undefined,
+      tags: formValues.tags.length > 0 ? formValues.tags : undefined,
+      imageUrl: formValues.imageUrl?.trim() || undefined,
+    };
+
+    try {
+      if (isEditMode.value) {
+        await updateMeal.mutateAsync({ id: mealData.id, meal: mealData });
+      } else {
+        await addMeal.mutateAsync(mealData);
+      }
+      emit("submit");
+    } catch (error) {
+      submitError.value =
+        error instanceof Error ? error.message : "Failed to save meal";
+      console.error("Error saving meal:", error);
+    }
+  },
+  (errors) => {
+    console.error("Validation errors:", errors);
+    submitError.value = "Please fix the validation errors above";
+  },
+);
 
 const handleDelete = () => {
   if (!editingMealId.value) return;
@@ -177,14 +214,15 @@ const handleDelete = () => {
 
 const addTag = () => {
   const tag = tagInput.value.trim();
-  if (tag) {
-    addTagToForm(tag);
-    tagInput.value = "";
-  }
-};
 
-const handleCancel = () => {
-  emit("cancel");
+  if (!tag) return;
+  if (values.tags.length >= 5) return;
+  if (values.tags.includes(tag)) {
+    tagInput.value = "";
+    return;
+  }
+  addTagToForm(tag);
+  tagInput.value = "";
 };
 
 // Cleanup
@@ -201,11 +239,15 @@ defineExpose({
 </script>
 
 <template>
-  <form @submit.prevent="onSubmit" class="flex flex-col gap-4" id="meal-form">
+  <form
+    @submit.prevent="onSubmit"
+    class="flex flex-col gap-4 max-h-[80vh] overflow-y-auto"
+    id="meal-form"
+  >
     <!-- Recipe URL Import -->
     <div
       v-if="!isEditMode"
-      class="bg-surface-50 p-4 rounded-lg border border-surface-200"
+      class="bg-gray-50 px-8 py-4 rounded-lg border border-gray-200 w-fit"
     >
       <label class="block text-sm font-medium mb-2">
         Import from URL (Optional)
@@ -213,14 +255,15 @@ defineExpose({
       <div class="flex gap-2">
         <InputText
           v-model="recipeUrl"
-          placeholder="https://www.hellofresh.co.nz/recipes/..."
-          class="flex-1"
+          class="min-w-lg"
           :disabled="isLoadingRecipe"
+          @keyup.enter="fetchRecipe"
         />
         <Button
           label="Fetch recipe"
           :loading="isLoadingRecipe"
           @click="fetchRecipe"
+          @keyup.enter="fetchRecipe"
           :disabled="!recipeUrl.trim() || isLoadingRecipe"
         />
       </div>
@@ -232,191 +275,215 @@ defineExpose({
       </small>
     </div>
 
-    <Divider v-if="!isEditMode">OR ENTER MANUALLY</Divider>
+    <Divider v-if="!isEditMode" align="left"> Or enter manually </Divider>
 
-    <!-- Meal Name -->
-    <CoreInputText
-      v-model="mealName"
-      label="Meal name"
-      required
-      :error="errors.mealName"
-    />
+    <div class="grid grid-cols-2 gap-4 items-start">
+      <!-- Meal Name -->
+      <CoreInputText
+        v-model="mealName"
+        label="Meal name"
+        required
+        :error="errors.mealName"
+      />
 
-    <!-- Default Servings -->
-    <div class="flex flex-col gap-2">
-      <label class="text-sm font-medium">
-        Default servings
-        <span
-          v-if="originalServings !== null"
-          class="text-xs text-primary-500 ml-2"
+      <!-- Default Servings -->
+      <div class="flex flex-col ml-2">
+        <label>
+          Default servings
+          <span
+            v-if="originalServings !== null"
+            class="text-xs text-primary-500 ml-2"
+          >
+            (Auto-scaling from {{ originalServings }} servings)
+          </span>
+        </label>
+        <InputNumber
+          v-model="defaultServings"
+          showButtons
+          :min="1"
+          :max="20"
+          :step="1"
+          buttonLayout="horizontal"
+          class="w-fit"
         >
-          (Auto-scaling from {{ originalServings }} servings)
-        </span>
-      </label>
-      <InputNumber
-        v-model="defaultServings"
-        showButtons
-        :min="1"
-        :max="20"
-        :step="1"
-        buttonLayout="horizontal"
-      >
-        <template #incrementbuttonicon>
-          <span class="pi pi-plus" />
-        </template>
-        <template #decrementbuttonicon>
-          <span class="pi pi-minus" />
-        </template>
-      </InputNumber>
-      <small v-if="errors.defaultServings" class="text-red-500">
-        {{ errors.defaultServings }}
-      </small>
-    </div>
+          <template #incrementicon>
+            <span class="pi pi-plus" />
+          </template>
+          <template #decrementicon>
+            <span class="pi pi-minus" />
+          </template>
+        </InputNumber>
+        <small v-if="errors.defaultServings" class="text-red-500">
+          {{ errors.defaultServings }}
+        </small>
+      </div>
 
-    <!-- Ingredients -->
-    <div class="flex flex-col gap-2">
-      <label class="text-sm font-medium">Ingredients</label>
-      <div
-        v-for="(ingredient, index) in values.ingredients"
-        :key="index"
-        class="flex gap-2 items-end"
-      >
-        <div class="flex-1">
+      <!-- Ingredients -->
+      <div class="flex flex-col col-span-2">
+        <label>Ingredients</label>
+        <div
+          v-for="(ingredient, index) in values.ingredients"
+          :key="index"
+          class="flex items-end gap-4 mb-2"
+        >
           <InputText
-            :model-value="ingredient.name"
+            :model-value="toSentenceCase(ingredient.name)"
             @update:model-value="updateIngredientField(index, 'name', $event)"
-            placeholder="Ingredient name"
-            class="w-full"
+            class="w-1/2"
           />
-        </div>
-        <div class="w-32">
           <InputNumber
             :model-value="ingredient.quantity"
-            @update:model-value="updateIngredientField(index, 'quantity', $event)"
+            @update:model-value="
+              updateIngredientField(index, 'quantity', $event)
+            "
             showButtons
             :min="0"
             :step="0.1"
             buttonLayout="horizontal"
-            class="w-full"
           >
-            <template #incrementbuttonicon>
+            <template #incrementicon>
               <span class="pi pi-plus" />
             </template>
-            <template #decrementbuttonicon>
+            <template #decrementicon>
               <span class="pi pi-minus" />
             </template>
           </InputNumber>
+          <Select
+            :model-value="ingredient.unit"
+            @update:model-value="updateIngredientField(index, 'unit', $event)"
+            :options="['g', 'kg', 'ml', 'l', 'pcs', 'cup']"
+            class="w-24"
+          />
+          <Button
+            icon="pi pi-times"
+            text
+            size="small"
+            class="self-center"
+            severity="danger"
+            @click="removeIngredient(index)"
+            :disabled="values.ingredients?.length === 1"
+          />
+          <Button
+            label="Add ingredient"
+            icon="pi pi-plus"
+            class="self-center"
+            size="small"
+            :disabled="!ingredient.name"
+            @click="addIngredient"
+          />
         </div>
-        <Select
-          :model-value="ingredient.unit"
-          @update:model-value="updateIngredientField(index, 'unit', $event)"
-          :options="['g', 'kg', 'ml', 'l', 'pcs']"
-          class="w-20"
-        />
-        <Button
-          icon="pi pi-times"
-          rounded
-          text
-          severity="danger"
-          @click="removeIngredient(index)"
-          :disabled="values.ingredients.length === 1"
+      </div>
+
+      <!-- Recipe Steps -->
+      <div class="flex flex-col col-span-2">
+        <label>Recipe steps</label>
+        <div
+          v-for="(step, index) in values.recipeSteps"
+          :key="index"
+          class="flex gap-2 items-start mb-2"
+        >
+          <Badge :value="`${index + 1}`" severity="info" class="mt-2" />
+          <Textarea
+            :model-value="step"
+            @update:model-value="updateRecipeStep(index, $event)"
+            :placeholder="`Step ${index + 1}`"
+            rows="2"
+            class="flex-1"
+          />
+          <Button
+            icon="pi pi-times"
+            rounded
+            text
+            severity="danger"
+            class="self-center"
+            :disabled="values.recipeSteps.length === 1"
+            @click="removeRecipeStep(index)"
+          />
+          <Button
+            label="Add step"
+            icon="pi pi-plus"
+            size="small"
+            class="self-center"
+            :disabled="!step"
+            @click="addRecipeStep"
+          />
+        </div>
+      </div>
+
+      <!-- Prep & Cook Time -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="flex flex-col">
+          <label>Prep time <span class="text-xs">(mins)</span></label>
+          <InputNumber v-model="prepTime" :min="0" />
+        </div>
+        <div class="flex flex-col">
+          <label>Cook time <span class="text-xs">(mins)</span></label>
+          <InputNumber v-model="cookTime" :min="0" />
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="flex flex-col">
+        <label>Tags <span class="text-xs">(max 5)</span></label>
+        <div class="flex gap-2">
+          <InputText
+            v-model="tagInput"
+            class="flex-1"
+            @keyup.enter.prevent="addTag"
+          />
+          <Button
+            icon="pi pi-plus"
+            size="small"
+            class="self-center"
+            label="Add tag"
+            :disabled="!tagInput"
+            @click="addTag"
+          />
+        </div>
+        <div v-if="values.tags.length" class="flex flex-wrap gap-2 mt-2">
+          <Chip
+            v-for="tag in values.tags"
+            :key="tag"
+            :label="tag.toLowerCase()"
+            size="small"
+            removable
+            @remove="removeTagFromForm(tag)"
+          />
+        </div>
+      </div>
+
+      <!-- Image URL -->
+      <div class="flex items-start gap-4 col-span-2">
+        <div class="w-1/2">
+          <CoreInputText
+            v-model="imageUrl"
+            label="Image URL (Optional)"
+            :error="errors.imageUrl"
+          />
+        </div>
+        <Image
+          v-if="imageUrl"
+          :src="imageUrl"
+          width="200"
+          class="mt-6"
+          alt="Meal image preview"
         />
       </div>
+    </div>
+
+    <!-- Submit Error -->
+    <Message v-if="submitError" severity="error" :closable="false">
+      {{ submitError }}
+    </Message>
+
+    <div class="flex gap-4 justify-end">
+      <Button label="Cancel" outlined @click="$emit('cancel')" />
+
       <Button
-        label="Add ingredient"
-        icon="pi pi-plus"
-        outlined
-        size="small"
-        @click="addIngredient"
-        class="self-start"
-      />
-    </div>
-
-    <!-- Recipe Steps -->
-    <div class="flex flex-col gap-2">
-      <label class="text-sm font-medium">Recipe Steps (Optional)</label>
-      <div
-        v-for="(step, index) in values.recipeSteps"
-        :key="index"
-        class="flex gap-2 items-start"
-      >
-        <Chip :label="`${index + 1}`" class="mt-2" />
-        <Textarea
-          :model-value="step"
-          @update:model-value="updateRecipeStep(index, $event)"
-          :placeholder="`Step ${index + 1}`"
-          rows="2"
-          class="flex-1"
-        />
-        <Button
-          icon="pi pi-times"
-          rounded
-          text
-          severity="danger"
-          @click="removeRecipeStep(index)"
-          :disabled="values.recipeSteps.length === 1"
-        />
-      </div>
-      <Button
-        label="Add step"
-        icon="pi pi-plus"
-        outlined
-        size="small"
-        @click="addRecipeStep"
-        class="self-start"
-      />
-    </div>
-
-    <!-- Prep & Cook Time -->
-    <div class="grid grid-cols-2 gap-4">
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-medium">Prep Time (minutes)</label>
-        <InputNumber v-model="prepTime" :min="0" placeholder="Optional" />
-      </div>
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-medium">Cook Time (minutes)</label>
-        <InputNumber v-model="cookTime" :min="0" placeholder="Optional" />
-      </div>
-    </div>
-
-    <!-- Tags -->
-    <div class="flex flex-col gap-2">
-      <label class="text-sm font-medium">Tags (Optional)</label>
-      <div class="flex gap-2">
-        <InputText
-          v-model="tagInput"
-          placeholder="e.g., Italian, Quick"
-          class="flex-1"
-          @keyup.enter.prevent="addTag"
-        />
-        <Button label="Add" @click="addTag" />
-      </div>
-      <div v-if="values.tags.length > 0" class="flex flex-wrap gap-2 mt-2">
-        <Chip
-          v-for="tag in values.tags"
-          :key="tag"
-          :label="tag"
-          removable
-          @remove="removeTagFromForm(tag)"
-        />
-      </div>
-    </div>
-
-    <!-- Image URL -->
-    <CoreInputText
-      v-model="imageUrl"
-      label="Image URL (Optional)"
-      placeholder="https://example.com/image.jpg"
-      :error="errors.imageUrl"
-    />
-
-    <!-- Delete Button (in edit mode) -->
-    <div v-if="isEditMode" class="flex gap-2">
-      <Button
-        :label="deleteConfirmation ? 'Click again to confirm' : 'Delete meal'"
-        :severity="deleteConfirmation ? 'danger' : 'secondary'"
-        outlined
-        @click="handleDelete"
+        label="Save meal"
+        form="meal-form"
+        type="submit"
+        :disabled="!mealName"
       />
     </div>
   </form>

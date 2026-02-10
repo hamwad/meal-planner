@@ -2,8 +2,31 @@
 import { RouterView } from "vue-router";
 import { VueQueryDevtools } from "@tanstack/vue-query-devtools";
 import { useAuthStore } from "./stores/auth";
+import FamilySetupDialog from "@/components/FamilySetupDialog.vue";
+import Auth from "./pages/auth.vue";
 
 const authStore = useAuthStore();
+
+// Show family setup dialog when authenticated but no family
+const showRequiredFamilySetup = computed(
+  () =>
+    authStore.isAuthenticated &&
+    authStore.isInitialized &&
+    !authStore.hasAnyFamily,
+);
+
+// Show main app when authenticated with active family
+const showMainApp = computed(
+  () =>
+    authStore.isAuthenticated &&
+    authStore.isInitialized &&
+    authStore.activeFamilyId,
+);
+
+// Show auth page when not authenticated
+const showAuth = computed(
+  () => !authStore.isAuthenticated && authStore.isInitialized,
+);
 
 onMounted(async () => {
   await authStore.initialize();
@@ -11,40 +34,36 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app-wrapper">
-    <RouterView
-      v-if="
-        authStore.isAuthenticated &&
-        authStore.isInitialized &&
-        authStore.familyId
-      "
-    />
+  <div class="app-wrapper h-screen overflow-hidden">
+    <!-- Loading state -->
     <div
-      v-else-if="!authStore.isInitialized"
+      v-if="!authStore.isInitialized"
       class="flex items-center justify-center h-screen"
     >
       <div class="text-center">
-        <div class="loading loading-spinner loading-lg"></div>
+        <ProgressSpinner />
         <p class="mt-4">Initializing...</p>
       </div>
     </div>
-    <div v-else class="flex items-center justify-center h-screen">
-      <p>Authentication failed. Please refresh the page.</p>
+
+    <!-- Required family setup (authenticated but no family) -->
+    <div
+      v-else-if="showRequiredFamilySetup"
+      class="flex items-center justify-center h-screen"
+    >
+      <FamilySetupDialog :required="true" />
     </div>
 
-    <!-- Main Content -->
-    <!-- <div class="app-container">
-      <Planner @edit-meal="handleEditMeal" @open-library="openLibrary" />
-      <ShoppingList />
-      <MealLibraryDialog ref="libraryDialogRef" />
-    </div> -->
+    <!-- Main app -->
+    <RouterView v-else-if="showMainApp" />
 
-    <!-- Family Setup Dialog -->
-    <!-- <FamilySetup
-      ref="familySetupRef"
-      @family-created="handleFamilyCreated"
-      @family-joined="handleFamilyJoined"
-    /> -->
+    <!-- Auth page -->
+    <Auth v-else-if="showAuth" />
+
+    <!-- Fallback - should be handled by router guards -->
+    <div v-else class="flex items-center justify-center h-screen">
+      <p>Redirecting...</p>
+    </div>
   </div>
   <VueQueryDevtools button-position="bottom-left" />
 </template>

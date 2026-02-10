@@ -35,7 +35,7 @@ const requiredSymbol = "*";
       <span v-if="required" class="text-error">
         {{ requiredSymbol }}
       </span>
-      {{ label }}
+      <p>{{ label }}</p>
     </label>
     <IconField v-if="icon" :icon="icon" class="flex">
       <InputText

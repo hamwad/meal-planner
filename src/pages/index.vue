@@ -1,34 +1,20 @@
 <script setup lang="ts">
-const mealLibraryDialogVisible = ref(false);
-// const showShoppingList = ref(true);
 const shoppingListVisible = ref(true);
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <header class="flex justify-between">
-      <h1 class="app-title">Meal Planner</h1>
-      <FamilyBadge />
-    </header>
-    <main class="relative">
-      <div class="flex gap-8">
-        <Planner @open-library="mealLibraryDialogVisible = true" />
-        <ShoppingList v-if="shoppingListVisible" />
-
-        <!-- Floating button to show shopping list when hidden -->
-        <!-- <Button
-          v-if="!showShoppingList"
-          icon="pi pi-list"
-          rounded
-          severity="secondary"
-          class="fixed top-6 right-6 shadow-lg bg-red-200 z-50"
-          @click="showShoppingList = true"
-        /> -->
+  <div class="h-screen flex flex-col overflow-x-hidden overflow-y-auto">
+    <TopNav @show-shopping-list="shoppingListVisible = $event" />
+    <main class="px-12 min-h-225 mb-12">
+      <div class="flex flex-1 gap-12 h-full">
+        <Planner class="flex-1 min-w-0 h-full" />
+        <ShoppingList v-if="shoppingListVisible" class="w-88 h-full" />
       </div>
-      <MealLibraryDialog
-        v-if="mealLibraryDialogVisible"
-        @close="mealLibraryDialogVisible = false"
-      />
     </main>
+    <footer
+      class="shrink-0 h-24 p-4 text-center text-sm text-gray-500 bg-green-500/30"
+    >
+      &copy; {{ new Date().getFullYear() }} Meal Planner. All rights reserved.
+    </footer>
   </div>
 </template>

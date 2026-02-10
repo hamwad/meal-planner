@@ -1,6 +1,50 @@
 import { supabase } from "@/services/supabase";
 import { useQuery } from "@tanstack/vue-query";
+import { useAuthStore } from "@/stores/auth";
+import { familyKeys } from "./keys";
+import type { FamilyWithMembership } from "@/types";
 
+/**
+ * Fetch all families the current user belongs to
+ */
+export const useUserFamiliesQuery = () => {
+  const authStore = useAuthStore();
+
+  return useQuery({
+    queryKey: computed(() => familyKeys.userFamilies(authStore.userId!)),
+    queryFn: async (): Promise<FamilyWithMembership[]> => {
+      const { data, error } = await supabase
+        .from("family_members")
+        .select(
+          `
+          family_id,
+          joined_at,
+          families (
+            id,
+            code,
+            created_at
+          )
+        `
+        )
+        .eq("user_id", authStore.userId!);
+
+      if (error) throw error;
+
+      return (data || []).map((row: any) => ({
+        id: row.families.id,
+        code: row.families.code,
+        created_at: row.families.created_at,
+        joinedAt: row.joined_at,
+      }));
+    },
+    enabled: computed(() => !!authStore.userId && authStore.isAuthenticated),
+  });
+};
+
+/**
+ * @deprecated Use useUserFamiliesQuery instead for multi-family support
+ * Kept for backwards compatibility
+ */
 export const useGetCurrentFamily = () => {
   return useQuery({
     queryFn: async () => {
@@ -30,6 +74,6 @@ export const useGetCurrentFamily = () => {
 
       return family;
     },
-    queryKey: [],
+    queryKey: ["currentFamily"],
   });
 };

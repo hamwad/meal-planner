@@ -1,4 +1,4 @@
-export type Unit = "g" | "kg" | "ml" | "l" | "pcs";
+export type Unit = "g" | "kg" | "ml" | "l" | "pcs" | "cup";
 
 export interface Ingredient {
   id: string;
@@ -46,13 +46,17 @@ export interface Family {
   created_at: string;
 }
 
+export interface FamilyWithMembership extends Family {
+  joinedAt: string;
+}
+
 export interface FamilyMember {
   family_id: string;
   user_id: string;
   joined_at: string;
 }
 
-export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'error';
+export type SyncStatus = "synced" | "syncing" | "offline" | "error";
 
 export interface SyncState {
   status: SyncStatus;

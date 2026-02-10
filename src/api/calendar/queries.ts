@@ -27,11 +27,9 @@ export function useCalendarQuery() {
   const authStore = useAuthStore();
 
   return useQuery({
-    queryKey: ["calendar", authStore.familyId],
-    queryFn: () => fetchCalendar(authStore.familyId!),
-    enabled: !!authStore.familyId && authStore.isInitialized,
+    queryKey: computed(() => ["calendar", authStore.activeFamilyId]),
+    queryFn: () => fetchCalendar(authStore.activeFamilyId!),
+    enabled: computed(() => !!authStore.activeFamilyId && authStore.isInitialized),
     staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
-    // Polling disabled - rely on mutation invalidation + refetch on focus/reconnect
-    // refetchInterval: 10000,
   });
 }

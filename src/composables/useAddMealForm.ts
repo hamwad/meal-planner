@@ -5,7 +5,7 @@ export type AddMealForm = {
   mealName: string;
   defaultServings: number;
   originalServings: number | null;
-  ingredients: Array<{ name: string; quantity: number; unit: Unit }>;
+  ingredients?: Array<{ name: string; quantity: number; unit: Unit }>;
   recipeSteps: string[];
   prepTime?: number;
   cookTime?: number;
@@ -29,23 +29,24 @@ export const useAddMealForm = () => {
           .of(
             yup.object().shape({
               name: yup.string().trim(),
-              quantity: yup.number().min(0, "Must be positive"),
+              quantity: yup
+                .number()
+                .min(0, "Must be positive")
+                .required("Quantity required"),
               unit: yup
                 .string()
-                .oneOf(["g", "kg", "ml", "l", "pcs"], "Invalid unit"),
+                .oneOf(["g", "kg", "ml", "l", "pcs", "cup"], "Invalid unit")
+                .required("Unit required"),
             }),
           )
-          .test(
-            "at-least-one-ingredient",
-            "At least one complete ingredient is required",
-            (ingredients) => {
-              if (!ingredients || ingredients.length === 0) return false;
-              return ingredients.some(
-                (ing) =>
-                  ing.name && ing.name.trim() !== "" && ing.quantity && ing.quantity > 0,
-              );
-            },
-          ),
+          .transform((value) =>
+            // Filter out empty/incomplete ingredients before validation
+            value?.filter(
+              (ing: { name?: string; quantity?: number }) =>
+                ing.name?.trim() || (ing.quantity && ing.quantity > 0),
+            ),
+          )
+          .optional(),
         recipeSteps: yup.array().of(yup.string()),
         prepTime: yup.number().min(0, "Must be positive").optional(),
         cookTime: yup.number().min(0, "Must be positive").optional(),
@@ -70,7 +71,7 @@ export const useAddMealForm = () => {
       mealName: "",
       defaultServings: 4,
       originalServings: null,
-      ingredients: [{ name: "", quantity: 0, unit: "g" }],
+      ingredients: [{ name: "", quantity: 1, unit: "pcs" as Unit }],
       recipeSteps: [""],
       prepTime: undefined,
       cookTime: undefined,
@@ -90,11 +91,37 @@ export const useAddMealForm = () => {
   // Helper to update ingredient field
   const updateIngredientField = (
     index: number,
-    field: keyof (typeof values.ingredients)[0],
-    value: any,
+    field: keyof NonNullable<AddMealForm["ingredients"]>[0],
+    value: string | number | undefined | null,
   ) => {
-    const newIngredients = [...values.ingredients];
-    newIngredients[index] = { ...newIngredients[index], [field]: value };
+    const newIngredients: AddMealForm["ingredients"] = (
+      values.ingredients ?? []
+    ).map((ing) => ({
+      name: ing.name ?? "",
+      quantity: ing.quantity ?? 1,
+      unit: ing.unit ?? "pcs",
+    }));
+    // Apply update with proper defaults
+    const current = newIngredients?.[index];
+    if (field === "name" && current) {
+      newIngredients[index] = {
+        name: (value as string) ?? "",
+        quantity: current.quantity,
+        unit: current.unit,
+      };
+    } else if (field === "quantity" && current) {
+      newIngredients[index] = {
+        name: current.name,
+        quantity: (value as number) ?? 1,
+        unit: current.unit,
+      };
+    } else if (field === "unit" && current) {
+      newIngredients[index] = {
+        name: current.name,
+        quantity: current.quantity,
+        unit: (value as Unit) ?? "pcs",
+      };
+    }
     setFieldValue("ingredients", newIngredients);
   };
 
@@ -107,16 +134,23 @@ export const useAddMealForm = () => {
 
   // Helper methods for dynamic arrays
   const addIngredient = () => {
-    const newIngredients = [
-      ...values.ingredients,
-      { name: "", quantity: 0, unit: "g" as Unit },
-    ];
-    setFieldValue("ingredients", newIngredients);
+    const currentIngredients: AddMealForm["ingredients"] = (
+      values.ingredients ?? []
+    ).map((ing) => ({
+      name: ing.name ?? "",
+      quantity: ing.quantity ?? 1,
+      unit: ing.unit ?? "pcs",
+    }));
+    setFieldValue("ingredients", [
+      ...currentIngredients,
+      { name: "", quantity: 1, unit: "pcs" as Unit },
+    ]);
   };
 
   const removeIngredient = (index: number) => {
-    if (values.ingredients.length > 1) {
-      const newIngredients = values.ingredients.filter((_, i) => i !== index);
+    const ingredients = values.ingredients ?? [];
+    if (ingredients.length > 0) {
+      const newIngredients = ingredients.filter((_, i) => i !== index);
       setFieldValue("ingredients", newIngredients);
     }
   };
@@ -134,13 +168,14 @@ export const useAddMealForm = () => {
   };
 
   const addTag = (tag: string) => {
-    if (tag && !values.tags.includes(tag)) {
-      setFieldValue("tags", [...values.tags, tag]);
-    }
+    setFieldValue("tags", [...values.tags, tag]);
   };
 
   const removeTag = (tag: string) => {
-    setFieldValue("tags", values.tags.filter((t) => t !== tag));
+    setFieldValue(
+      "tags",
+      values.tags.filter((t) => t !== tag),
+    );
   };
 
   // Populate form for editing
@@ -149,7 +184,7 @@ export const useAddMealForm = () => {
       mealName: meal.name,
       defaultServings: meal.defaultServings,
       originalServings: meal.defaultServings,
-      ingredients: meal.ingredients.map((ing) => ({
+      ingredients: meal.ingredients?.map((ing) => ({
         name: ing.name,
         quantity: ing.quantity,
         unit: ing.unit,
