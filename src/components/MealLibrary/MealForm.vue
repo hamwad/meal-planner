@@ -45,13 +45,12 @@ const {
 } = useAddMealForm();
 
 // Mutations
-const { addMeal, updateMeal, deleteMeal } = useMealMutations();
+const { addMeal, updateMeal } = useMealMutations();
 
 // Form state
 const recipeUrl = ref("");
 const isLoadingRecipe = ref(false);
 const recipeErrorMessage = ref("");
-const deleteConfirmation = ref(false);
 let deleteConfirmationTimer: ReturnType<typeof setTimeout> | null = null;
 const tagInput = ref("");
 const editingMealId = ref<string | null>(null);
@@ -192,25 +191,6 @@ const onSubmit = handleSubmit(
     submitError.value = "Please fix the validation errors above";
   },
 );
-
-const handleDelete = () => {
-  if (!editingMealId.value) return;
-
-  if (!deleteConfirmation.value) {
-    deleteConfirmation.value = true;
-    deleteConfirmationTimer = setTimeout(() => {
-      deleteConfirmation.value = false;
-    }, 3000);
-    return;
-  }
-
-  if (deleteConfirmationTimer) {
-    clearTimeout(deleteConfirmationTimer);
-  }
-
-  deleteMeal.mutate(editingMealId.value);
-  emit("delete");
-};
 
 const addTag = () => {
   const tag = tagInput.value.trim();
