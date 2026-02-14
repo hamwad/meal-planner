@@ -221,7 +221,7 @@ defineExpose({
 <template>
   <form
     @submit.prevent="onSubmit"
-    class="flex flex-col gap-4 max-h-[80vh] overflow-y-auto"
+    class="flex flex-col gap-4 max-h-[80vh] overflow-y-auto mb-8"
     id="meal-form"
   >
     <!-- Recipe URL Import -->
