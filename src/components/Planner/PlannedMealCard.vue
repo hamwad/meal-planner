@@ -6,6 +6,7 @@ import { useCalendarMutations } from "@/api/calendar";
 import { useDragAndDrop } from "@/composables/useDragAndDrop";
 import MealCardBase from "@/components/MealCardBase.vue";
 import MealCardCompact from "@/components/MealCardCompact.vue";
+import RecipeDrawer from "./RecipeDrawer.vue";
 import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 
 const { smaller } = useBreakpoints(breakpointsTailwind);
@@ -24,6 +25,7 @@ const { removeMealFromDate } = useCalendarMutations();
 const { startDrag, endDrag } = useDragAndDrop();
 
 const isDragging = ref(false);
+const recipeDrawerVisible = ref(false);
 
 const meal = computed(() => {
   if (!meals.value) return undefined;
@@ -43,6 +45,10 @@ const handleEdit = () => {
   }
 };
 
+const handleShowRecipe = () => {
+  recipeDrawerVisible.value = true;
+};
+
 const handleDragStart = (event: DragEvent) => {
   isDragging.value = true;
   startDrag(props.calendarMeal.mealId, props.calendarMeal.date);
@@ -59,6 +65,11 @@ const handleDragEnd = () => {
 
 <template>
   <template v-if="meal">
+    <RecipeDrawer
+      :visible="recipeDrawerVisible"
+      :meal="meal"
+      @edit="emit('edit', $event)"
+    />
     <MealCardCompact
       v-if="isMobile"
       :meal="meal"
@@ -68,7 +79,7 @@ const handleDragEnd = () => {
       :class="{ 'opacity-50 cursor-grabbing': isDragging }"
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
-      @click="handleEdit"
+      @click="handleShowRecipe"
     >
       <template #header-actions>
         <i
