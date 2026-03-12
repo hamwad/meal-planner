@@ -85,7 +85,7 @@ const menuItems = computed(() => [
 </script>
 
 <template>
-  <div class="flex items-center p-2 mb-8 shrink-0">
+  <div class="flex items-center p-2 shrink-0">
     <img :src="logoImage" alt="logo" class="h-20 object-fit" />
     <div class="flex gap-4 ml-28">
       <Button

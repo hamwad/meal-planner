@@ -2,6 +2,10 @@
 
 > This file provides context for AI assistants working on this project. It documents architectural decisions, coding patterns, and common tasks.
 
+## AI Assistant Rules
+
+- **Never add `Co-Authored-By:` trailers to git commits.** Vercel checks all commit authors against project contributors and will block deployments if an unrecognised email (e.g. `noreply@anthropic.com`) appears in the commit.
+
 ## Project Overview
 
 A family meal planning application built with Vue 3, TypeScript, and Supabase. Users can create meals, plan weekly menus, and generate shopping lists. Families can share data by joining with a family code.

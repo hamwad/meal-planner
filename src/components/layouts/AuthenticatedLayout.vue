@@ -9,7 +9,9 @@ const shoppingListVisible = ref(true);
       @show-shopping-list="shoppingListVisible = $event"
     />
     <MobileHeader class="md:hidden" />
-    <main class="flex-1 overflow-y-auto">
+    <main
+      class="flex-1 overflow-y-auto px-2 md:px-12 pt-2 md:pt-12 pb-24 md:pb-12"
+    >
       <RouterView :shopping-list-visible="shoppingListVisible" />
     </main>
     <BottomNav class="md:hidden" />

@@ -71,7 +71,7 @@ const showDeleteDialog = ref(false);
 </script>
 
 <template>
-  <MealCardBase :meal="meal" class="h-full" @click="handleEdit">
+  <MealCardBase :meal="meal" class="h-full min-w-36" @click="handleEdit">
     <template #header-actions>
       <i
         class="pi pi-pencil text-gray-300 cursor-pointer mr-2"
@@ -91,7 +91,7 @@ const showDeleteDialog = ref(false);
           <Button
             v-for="day in weekDays"
             :key="day.dateISO"
-            :pt="{ root: '!p-1', label: 'text-xs' }"
+            :pt="{ root: '!p-1 w-6', label: 'text-xs' }"
             :label="
               day.date.toLocaleDateString('en-US', {
                 weekday: 'narrow',

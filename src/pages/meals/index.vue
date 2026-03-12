@@ -2,6 +2,10 @@
 import { useMealsQuery } from "@/api/meals";
 import { useWeekStore } from "@/stores/week";
 import type { Meal } from "@/types";
+import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
+
+const { smaller } = useBreakpoints(breakpointsTailwind);
+const isMobile = smaller("md");
 
 const route = useRoute();
 const weekStore = useWeekStore();
@@ -69,9 +73,9 @@ const handleFormDelete = () => {
     <!-- 'Browse' mode -->
     <div
       v-if="viewMode === 'browse'"
-      class="flex flex-col gap-4 px-12 flex-1 min-h-0"
+      class="flex flex-col gap-4 flex-1 min-h-0"
     >
-      <div class="flex gap-4 items-center w-3/5 self-center">
+      <div class="flex gap-4 items-center w-full self-center">
         <IconField class="grow">
           <InputIcon class="pi pi-search" />
           <InputText
@@ -80,8 +84,13 @@ const handleFormDelete = () => {
             fluid
           />
         </IconField>
-        <span class="text-gray-500">OR</span>
-        <Button icon="pi pi-plus" label="Add new meal" @click="showAddForm" />
+        <span v-if="!isMobile" class="text-gray-500">OR</span>
+        <Button
+          v-if="!isMobile"
+          icon="pi pi-plus"
+          label="Add new meal"
+          @click="showAddForm"
+        />
       </div>
 
       <WeekNavigator />
@@ -97,7 +106,7 @@ const handleFormDelete = () => {
         v-else-if="filteredMeals.length > 0"
         class="flex-1 min-h-0 overflow-y-auto pb-8"
       >
-        <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-4 xl:grid-cols-7 gap-4">
           <MealCard
             v-for="meal in filteredMeals"
             :key="meal.id"
