@@ -12,7 +12,7 @@ const weekStore = useWeekStore();
 
 <template>
   <div class="flex flex-col h-full">
-    <div class="flex justify-between items-center mb-4 shrink-0">
+    <div class="hidden md:flex justify-between items-center mb-4 shrink-0">
       <WeekNavigator />
       <div class="text-right">
         <p class="text-sm font-semibold">

@@ -27,7 +27,7 @@ const weekDays = computed(() => {
 <template>
   <div>
     <h3 class="text-lg font-semibold">{{ title }}</h3>
-    <div class="grid grid-cols-7 gap-2">
+    <div class="grid md:grid-cols-7 gap-2">
       <DayColumn
         v-for="day in weekDays"
         :key="day.dateISO"

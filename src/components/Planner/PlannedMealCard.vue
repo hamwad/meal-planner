@@ -5,6 +5,11 @@ import { useMealsQuery } from "@/api/meals";
 import { useCalendarMutations } from "@/api/calendar";
 import { useDragAndDrop } from "@/composables/useDragAndDrop";
 import MealCardBase from "@/components/MealCardBase.vue";
+import MealCardCompact from "@/components/MealCardCompact.vue";
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+
+const { smaller } = useBreakpoints(breakpointsTailwind);
+const isMobile = smaller("md");
 
 const props = defineProps<{
   calendarMeal: CalendarMeal;
@@ -53,22 +58,42 @@ const handleDragEnd = () => {
 </script>
 
 <template>
-  <MealCardBase
-    v-if="meal"
-    :meal="meal"
-    :servings-override="calendarMeal.servingsOverride"
-    :draggable="true"
-    class="h-80"
-    :class="{ 'opacity-50 cursor-grabbing': isDragging }"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
-    @click="handleEdit"
-  >
-    <template #header-actions>
-      <i
-        class="pi pi-times text-gray-300 cursor-pointer"
-        @click.stop="handleRemove"
-      />
-    </template>
-  </MealCardBase>
+  <template v-if="meal">
+    <MealCardCompact
+      v-if="isMobile"
+      :meal="meal"
+      :date="new Date(calendarMeal.date)"
+      :servings-override="calendarMeal.servingsOverride"
+      :draggable="true"
+      :class="{ 'opacity-50 cursor-grabbing': isDragging }"
+      @dragstart="handleDragStart"
+      @dragend="handleDragEnd"
+      @click="handleEdit"
+    >
+      <template #header-actions>
+        <i
+          class="pi pi-times text-gray-300 cursor-pointer"
+          @click.stop="handleRemove"
+        />
+      </template>
+    </MealCardCompact>
+    <MealCardBase
+      v-else
+      :meal="meal"
+      :servings-override="calendarMeal.servingsOverride"
+      :draggable="true"
+      class="h-80"
+      :class="{ 'opacity-50 cursor-grabbing': isDragging }"
+      @dragstart="handleDragStart"
+      @dragend="handleDragEnd"
+      @click="handleEdit"
+    >
+      <template #header-actions>
+        <i
+          class="pi pi-times text-gray-300 cursor-pointer"
+          @click.stop="handleRemove"
+        />
+      </template>
+    </MealCardBase>
+  </template>
 </template>

@@ -11,8 +11,11 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AuthenticatedLayout: typeof import('./src/components/layouts/AuthenticatedLayout.vue')['default']
     Badge: typeof import('primevue/badge')['default']
+    BottomNav: typeof import('./src/components/BottomNav.vue')['default']
     Button: typeof import('primevue/button')['default']
+    CalendarDayBadge: typeof import('./src/components/Planner/CalendarDayBadge.vue')['default']
     Card: typeof import('primevue/card')['default']
     Checkbox: typeof import('primevue/checkbox')['default']
     Chip: typeof import('primevue/chip')['default']
@@ -34,10 +37,12 @@ declare module 'vue' {
     InputText: typeof import('primevue/inputtext')['default']
     MealCard: typeof import('./src/components/MealLibrary/MealCard.vue')['default']
     MealCardBase: typeof import('./src/components/MealCardBase.vue')['default']
+    MealCardCompact: typeof import('./src/components/MealCardCompact.vue')['default']
     MealForm: typeof import('./src/components/MealLibrary/MealForm.vue')['default']
     MealLibraryDialog: typeof import('./src/components/MealLibrary/MealLibraryDialog.vue')['default']
     Menu: typeof import('primevue/menu')['default']
     Message: typeof import('primevue/message')['default']
+    MobileHeader: typeof import('./src/components/MobileHeader.vue')['default']
     Password: typeof import('primevue/password')['default']
     PlannedMealCard: typeof import('./src/components/Planner/PlannedMealCard.vue')['default']
     Planner: typeof import('./src/components/Planner/Planner.vue')['default']

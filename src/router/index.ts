@@ -1,22 +1,26 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
+import AuthenticatedLayout from "@/components/layouts/AuthenticatedLayout.vue";
 import HomeView from "@/pages/index.vue";
 import MealsView from "@/pages/meals/index.vue";
 import AuthView from "@/pages/auth.vue";
+import ShoppingListView from "@/pages/shopping-list/index.vue";
+import SettingsView from "@/pages/settings/index.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
-      component: HomeView,
+      component: AuthenticatedLayout,
       meta: { requiresAuth: true },
-    },
-    {
-      path: "/meals",
-      component: MealsView,
-      meta: { requiresAuth: true },
+      children: [
+        { path: "", component: HomeView },
+        { path: "meals", component: MealsView },
+        { path: "shopping-list", component: ShoppingListView },
+        { path: "settings", component: SettingsView },
+      ],
     },
     {
       path: "/auth",

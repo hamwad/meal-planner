@@ -65,10 +65,12 @@ const handleFormDelete = () => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col">
-    <TopNav />
+  <div class="flex flex-col gap-4 pb-24 md:pb-0">
     <!-- 'Browse' mode -->
-    <div v-if="viewMode === 'browse'" class="flex flex-col gap-4 px-12 flex-1 min-h-0">
+    <div
+      v-if="viewMode === 'browse'"
+      class="flex flex-col gap-4 px-12 flex-1 min-h-0"
+    >
       <div class="flex gap-4 items-center w-3/5 self-center">
         <IconField class="grow">
           <InputIcon class="pi pi-search" />
