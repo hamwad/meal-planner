@@ -9,6 +9,11 @@ import {
 } from "@/utils/dateHelpers";
 import { useMealMutations } from "@/api/meals";
 import MealCardBase from "@/components/MealCardBase.vue";
+import emptyPlateImg from "@/assets/images/empty_plate.jpg";
+import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
+
+const { smaller } = useBreakpoints(breakpointsTailwind);
+const isMobile = smaller("md");
 
 const props = defineProps<{
   meal: Meal;
@@ -71,7 +76,64 @@ const showDeleteDialog = ref(false);
 </script>
 
 <template>
-  <MealCardBase :meal="meal" class="h-full min-w-36" @click="handleEdit">
+  <!-- Mobile layout -->
+  <div
+    v-if="isMobile"
+    class="flex flex-col w-full rounded-lg border border-gray-200 bg-white mb-2 overflow-hidden"
+  >
+    <div class="flex flex-row h-fit">
+      <img
+        :src="meal.imageUrl || emptyPlateImg"
+        :alt="meal.name"
+        class="h-full w-16 object-cover shrink-0"
+      />
+      <div
+        class="flex flex-col justify-center px-3 py-2 overflow-hidden flex-1"
+      >
+        <p class="text-sm font-medium line-clamp-2 leading-tight">
+          {{ meal.name }}
+        </p>
+        <p class="text-xs text-gray-500 mt-1">
+          {{ meal.defaultServings }} servings · {{ meal.ingredients.length }}
+          ingredients
+        </p>
+      </div>
+      <div class="flex items-center gap-3 pr-3 shrink-0">
+        <i
+          class="pi pi-pencil text-gray-400 cursor-pointer"
+          @click.stop="handleEdit"
+        />
+        <i
+          class="pi pi-trash text-gray-400 cursor-pointer"
+          @click.stop="showDeleteDialog = true"
+        />
+      </div>
+    </div>
+    <div class="flex flex-col px-3 py-2 border-t border-gray-100">
+      <span class="text-[0.7rem] text-gray-400 mb-1.5"
+        >Schedule for {{ weekLabel }}</span
+      >
+      <div class="flex gap-1.5">
+        <Button
+          v-for="day in weekDays"
+          :key="day.dateISO"
+          :pt="{ root: '!p-0 flex-1 min-w-0', label: 'text-[0.7rem]' }"
+          :label="
+            day.date.toLocaleDateString('en-US', {
+              weekday: 'narrow',
+            })
+          "
+          :severity="
+            isMealScheduledForDay(day.dateISO) ? 'primary' : 'secondary'
+          "
+          @click.stop="toggleScheduleForDay(day.dateISO)"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop layout -->
+  <MealCardBase v-else :meal="meal" class="h-full min-w-36" @click="handleEdit">
     <template #header-actions>
       <i
         class="pi pi-pencil text-gray-300 cursor-pointer mr-2"

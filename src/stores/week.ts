@@ -22,6 +22,9 @@ export const useWeekStore = defineStore('week', () => {
     return `${start} - ${end}`;
   });
 
+  // Current week check
+  const isCurrentWeek = computed(() => formatDateISO(weekStart.value) === formatDateISO(getWeekStart()));
+
   // Navigation
   const previousWeek = () => {
     weekStart.value = addDays(weekStart.value, -7);
@@ -41,6 +44,7 @@ export const useWeekStore = defineStore('week', () => {
 
   return {
     weekStart,
+    isCurrentWeek,
     currentWeekEnd,
     currentWeekRange,
     nextWeekStart,

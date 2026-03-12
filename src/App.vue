@@ -65,5 +65,5 @@ onMounted(async () => {
       <p>Redirecting...</p>
     </div>
   </div>
-  <VueQueryDevtools button-position="bottom-left" />
+  <VueQueryDevtools button-position="bottom-right" />
 </template>

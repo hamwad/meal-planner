@@ -93,7 +93,7 @@ const handleFormDelete = () => {
         />
       </div>
 
-      <WeekNavigator />
+      <WeekNavigator disable-past />
 
       <div v-if="isLoadingMeals" class="text-center py-12">
         <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />

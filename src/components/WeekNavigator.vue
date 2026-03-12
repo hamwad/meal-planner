@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { useWeekStore } from "@/stores/week";
 
+const props = defineProps<{
+  disablePast?: boolean;
+}>();
+
 const weekStore = useWeekStore();
+
+const prevDisabled = computed(
+  () => props.disablePast && weekStore.isCurrentWeek,
+);
 </script>
 
 <template>
@@ -10,12 +18,14 @@ const weekStore = useWeekStore();
       label="← Prev"
       text
       size="small"
+      :disabled="prevDisabled"
       @click="weekStore.previousWeek"
     />
     <Button
       label="This week"
       text
       size="small"
+      :disabled="weekStore.isCurrentWeek"
       @click="weekStore.goToCurrentWeek"
     />
     <Button
