@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import { useWeekStore } from "@/stores/week";
+
 const isMobile = useIsMobile();
+const weekStore = useWeekStore();
 
 const props = defineProps<{ shoppingListVisible?: boolean }>();
+
+onMounted(() => {
+  weekStore.goToCurrentWeek();
+});
 </script>
 
 <template>
