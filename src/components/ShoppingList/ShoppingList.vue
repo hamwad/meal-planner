@@ -10,6 +10,8 @@ import {
   type IngredientCategory,
 } from "@/utils/ingredientCategorizer";
 
+const isMobile = useIsMobile();
+
 const shoppingListVisible = ref(true);
 
 const shoppingListStore = useShoppingListStore();
@@ -102,10 +104,13 @@ const options = ref([
 
 <template>
   <div
-    class="flex flex-col h-full px-4 bg-gray-200 rounded-xl"
+    :class="[
+      'flex flex-col h-full px-4 rounded-xl',
+      { 'bg-gray-200': !isMobile },
+    ]"
     v-if="shoppingListVisible"
   >
-    <div class="flex justify-between items-end my-3">
+    <div v-if="!isMobile" class="flex justify-between items-end my-3">
       <div class="flex items-center gap-2">
         <h2 class="text-xl font-bold">Shopping List</h2>
       </div>

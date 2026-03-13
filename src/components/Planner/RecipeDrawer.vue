@@ -3,6 +3,7 @@ import type { Meal } from "@/types";
 import emptyPlateImg from "@/assets/images/empty_plate.jpg";
 
 defineProps<{ meal: Meal }>();
+defineEmits(["edit"]);
 
 const visible = defineModel<boolean>("visible", { required: true });
 </script>

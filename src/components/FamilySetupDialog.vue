@@ -13,22 +13,16 @@ const emit = defineEmits<{
 }>();
 
 const authStore = useAuthStore();
+const isMobile = useIsMobile();
 
 const visible = ref(true);
-const mode = ref("Create");
 const joinCode = ref("");
-
 const createdFamily = ref<Family | null>(null);
 
 const code = computed(() => createdFamily.value?.code ?? "");
 const validJoinCode = computed(() => joinCode.value.length === 6);
 
 const { copy, copied } = useClipboard({ source: code });
-
-watch(mode, (newMode) => {
-  if (!newMode) return;
-  joinCode.value = "";
-});
 
 const { mutateAsync, isPending: isCreatingFamily } = useCreateFamily();
 
@@ -43,8 +37,6 @@ const handleCreateFamily = async () => {
   const result = await mutateAsync();
   if (result?.family) {
     createdFamily.value = result.family;
-    // authStore.setActiveFamily(result.family.id);
-    // emit("family-selected", result.family);
   }
 };
 
@@ -74,7 +66,108 @@ const handleContinue = () => {
 </script>
 
 <template>
+  <!-- Mobile: bottom drawer -->
+  <Drawer
+    v-if="isMobile"
+    v-model:visible="visible"
+    position="bottom"
+    :show-close-icon="false"
+    :block-scroll="true"
+    class="rounded-t-2xl! h-auto! max-h-4/5"
+    @after-hide="$emit('close')"
+  >
+    <template #header>
+      <div class="flex items-center justify-between w-full">
+        <h2 class="text-base font-semibold">Create or join family</h2>
+        <Button
+          v-if="!required"
+          icon="pi pi-times"
+          text
+          rounded
+          severity="secondary"
+          size="small"
+          @click="handleClose"
+        />
+      </div>
+    </template>
+
+    <div class="flex flex-col gap-6 pb-6">
+      <div class="flex flex-col">
+        <p class="text font-semibold mb-2">Join an existing family</p>
+        <p class="mb-2">
+          Enter family code below to join existing family and access their
+          shared meals and calendar
+        </p>
+        <div class="flex flex-col gap-3">
+          <InputOtp
+            v-model="joinCode"
+            :length="6"
+            :pt="{ pcInputText: { root: 'uppercase' } }"
+            :invalid="!!error"
+          />
+          <small v-if="!!error" class="text-red-500">{{ error.message }}</small>
+          <Button
+            v-if="!joinedFamily"
+            class="w-fit"
+            label="Join family"
+            :disabled="!validJoinCode"
+            :loading="isJoiningFamily"
+            @click="handleJoinFamily"
+          />
+          <div v-else class="flex items-center gap-4">
+            <Button icon="pi pi-check" rounded class="bg-transparent" size="small" />
+            <p>Successfully joined family</p>
+          </div>
+        </div>
+      </div>
+
+      <Divider align="center">
+        <span class="text-surface-500 text-sm">or</span>
+      </Divider>
+
+      <div class="flex flex-col">
+        <p class="text font-semibold mb-2">Create a new family</p>
+        <p class="mb-4">
+          Create a new family to share your meal library and weekly planner with
+          family members
+        </p>
+        <Button
+          v-if="!createdFamily"
+          class="w-fit"
+          label="Create new family"
+          :loading="isCreatingFamily"
+          @click="handleCreateFamily"
+        />
+        <div v-else class="flex flex-col gap-2">
+          <div class="flex items-center gap-2 mt-2 ml-4">
+            <i class="pi pi-check-circle text-green-500" />
+            <span>Family created!</span>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <p>Share this code with family members</p>
+            <div
+              class="flex items-center justify-center gap-2 px-2 rounded-lg bg-gray-300 cursor-pointer hover:bg-surface-100 transition-colors"
+              @click="copy(createdFamily!.code)"
+            >
+              <span class="text-lg font-bold">{{ createdFamily!.code }}</span>
+              <i :class="[!copied ? 'pi pi-copy' : 'pi pi-check text-green-500', 'text-lg']" />
+            </div>
+            <small v-if="copied" class="text-green-500 text-center">Copied to clipboard</small>
+          </div>
+        </div>
+      </div>
+
+      <Button
+        label="Continue"
+        @click="handleContinue"
+        :disabled="!createdFamily && !joinedFamily"
+      />
+    </div>
+  </Drawer>
+
+  <!-- Desktop: dialog -->
   <Dialog
+    v-else
     :visible="visible"
     modal
     header="Create or join family"
@@ -110,12 +203,7 @@ const handleContinue = () => {
               @click="handleJoinFamily"
             />
             <div v-else class="flex items-center gap-4">
-              <Button
-                icon="pi pi-check"
-                rounded
-                class="bg-transparent"
-                size="small"
-              />
+              <Button icon="pi pi-check" rounded class="bg-transparent" size="small" />
               <p>Successfully joined family</p>
             </div>
           </div>
@@ -150,19 +238,10 @@ const handleContinue = () => {
               class="flex items-center justify-center gap-2 px-2 rounded-lg bg-gray-300 cursor-pointer hover:bg-surface-100 transition-colors"
               @click="copy(createdFamily!.code)"
             >
-              <span class="text-lg font-bold">
-                {{ createdFamily!.code }}
-              </span>
-              <i
-                :class="[
-                  !copied ? 'pi pi-copy' : 'pi pi-check text-green-500',
-                  'text-lg',
-                ]"
-              />
+              <span class="text-lg font-bold">{{ createdFamily!.code }}</span>
+              <i :class="[!copied ? 'pi pi-copy' : 'pi pi-check text-green-500', 'text-lg']" />
             </div>
-            <small v-if="copied" class="text-green-500 text-center"
-              >Copied to clipboard</small
-            >
+            <small v-if="copied" class="text-green-500 text-center">Copied to clipboard</small>
           </div>
         </div>
       </div>

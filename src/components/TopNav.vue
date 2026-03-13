@@ -51,9 +51,7 @@ const openFamilySetupDialog = () => {
   familySetupDialogVisible.value = true;
 };
 
-const toggleSettingsMenu = (event: Event) => {
-  settingsMenu.value?.toggle(event);
-};
+const toggleSettingsMenu = (event: Event) => settingsMenu.value?.toggle(event);
 
 const handleShowShoppingList = () => {
   shoppingListVisible.value = !shoppingListVisible.value;

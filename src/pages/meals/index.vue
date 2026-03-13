@@ -2,10 +2,7 @@
 import { useMealsQuery } from "@/api/meals";
 import { useWeekStore } from "@/stores/week";
 import type { Meal } from "@/types";
-import { useBreakpoints, breakpointsTailwind } from "@vueuse/core";
-
-const { smaller } = useBreakpoints(breakpointsTailwind);
-const isMobile = smaller("md");
+const isMobile = useIsMobile();
 
 const route = useRoute();
 const weekStore = useWeekStore();
@@ -55,21 +52,13 @@ const backToBrowse = () => {
   editingMeal.value = null;
 };
 
-const handleFormSubmit = () => {
-  backToBrowse();
-};
-
-const handleFormCancel = () => {
-  backToBrowse();
-};
-
-const handleFormDelete = () => {
-  backToBrowse();
-};
+const handleFormSubmit = () => backToBrowse();
+const handleFormCancel = () => backToBrowse();
+const handleFormDelete = () => backToBrowse();
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 pb-24 md:pb-0">
+  <div class="flex flex-col gap-4 pt-2 pb-24 md:pb-0">
     <!-- 'Browse' mode -->
     <div
       v-if="viewMode === 'browse'"

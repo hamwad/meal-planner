@@ -27,6 +27,7 @@ export default defineConfig({
           yup: [["*", "yup"]],
         },
       ],
+      dirs: ["src/composables"],
     }),
   ],
   resolve: {

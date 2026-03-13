@@ -3,15 +3,13 @@ import type { Meal } from "@/types";
 import { useCalendarQuery } from "@/api/calendar";
 import { useCalendarMutations } from "@/api/calendar";
 import { useDragAndDrop } from "@/composables/useDragAndDrop";
-import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
 import emptyPlateImg from "@/assets/images/empty_plate.jpg";
 import PlannedMealCard from "./PlannedMealCard.vue";
 import MealCardBase from "@/components/MealCardBase.vue";
 import CalendarDayBadge from "./CalendarDayBadge.vue";
 import { formatDate } from "@/utils/dateHelpers";
 
-const { smaller } = useBreakpoints(breakpointsTailwind);
-const isMobile = smaller("md");
+const isMobile = useIsMobile();
 
 const props = defineProps<{
   date: Date;

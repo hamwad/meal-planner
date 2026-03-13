@@ -10,10 +10,7 @@ import {
 import { useMealMutations } from "@/api/meals";
 import MealCardBase from "@/components/MealCardBase.vue";
 import emptyPlateImg from "@/assets/images/empty_plate.jpg";
-import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
-
-const { smaller } = useBreakpoints(breakpointsTailwind);
-const isMobile = smaller("md");
+const isMobile = useIsMobile();
 
 const props = defineProps<{
   meal: Meal;

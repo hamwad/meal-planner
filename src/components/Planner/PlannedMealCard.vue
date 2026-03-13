@@ -7,10 +7,7 @@ import { useDragAndDrop } from "@/composables/useDragAndDrop";
 import MealCardBase from "@/components/MealCardBase.vue";
 import MealCardCompact from "@/components/MealCardCompact.vue";
 import RecipeDrawer from "./RecipeDrawer.vue";
-import { breakpointsTailwind, useBreakpoints } from "@vueuse/core";
-
-const { smaller } = useBreakpoints(breakpointsTailwind);
-const isMobile = smaller("md");
+const isMobile = useIsMobile();
 
 const props = defineProps<{
   calendarMeal: CalendarMeal;
